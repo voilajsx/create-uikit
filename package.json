@@ -1,0 +1,40 @@
+{
+  "name": "create-uikit",
+  "version": "1.0.0",
+  "description": "Create VoilaJS UIKit applications with one command",
+  "type": "module",
+  "bin": {
+    "create-uikit": "index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "uikit",
+    "voilajs",
+    "react",
+    "vite",
+    "tailwind",
+    "shadcn",
+    "create-app",
+    "cli",
+    "typescript"
+  ],
+  "author": "VoilaJS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voilajsx/create-uikit.git"
+  },
+  "homepage": "https://uikit.voilajsx.com",
+  "bugs": {
+    "url": "https://github.com/voilajsx/create-uikit/issues"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
