@@ -7,9 +7,14 @@
  * @file index.js
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ANSI color codes for terminal output
 const colors = {
@@ -55,18 +60,18 @@ function createProject() {
       preview: 'vite preview',
     },
     dependencies: {
-      react: '^18.2.0',
-      'react-dom': '^18.2.0',
+      react: '^18.3.1',
+      'react-dom': '^18.3.1',
       '@voilajsx/uikit': 'latest',
-      'lucide-react': '^0.263.1',
+      'lucide-react': '^0.515.0',
     },
     devDependencies: {
-      '@types/react': '^18.2.15',
-      '@types/react-dom': '^18.2.7',
-      '@vitejs/plugin-react': '^4.0.3',
-      '@tailwindcss/vite': '^4.0.0-alpha.20',
-      typescript: '^5.0.2',
-      vite: '^4.4.5',
+      '@types/react': '^18.3.12',
+      '@types/react-dom': '^18.3.1',
+      '@vitejs/plugin-react': '^4.5.2',
+      '@tailwindcss/vite': '^4.1.10',
+      typescript: '^5.8.3',
+      vite: '^6.3.5',
     },
   };
 
@@ -178,159 +183,161 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
   fs.writeFileSync('src/main.tsx', mainTsx);
 
-  // Create App.tsx with UIKit example
+  // Create App.tsx with beautiful landing page
   const appTsx = `/**
- * Main App component with UIKit example
+ * Main App component with beautiful UIKit landing page
  * @module ${projectName}
  * @file src/App.tsx
  */
 
-import { Button } from '@voilajsx/uikit/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@voilajsx/uikit/card'
-import { Badge } from '@voilajsx/uikit/badge'
-import { useTheme } from '@voilajsx/uikit/theme-provider'
-import { Sun, Moon, Palette } from 'lucide-react'
+import { useState } from 'react';
+import { ThemeProvider, useTheme } from '@voilajsx/uikit/theme-provider';
 
-function App() {
-  const { theme, variant, setTheme, toggleVariant } = useTheme()
+// Import components
+import { Button } from '@voilajsx/uikit/button';
+import { Badge } from '@voilajsx/uikit/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@voilajsx/uikit/select';
+import { Switch } from '@voilajsx/uikit/switch';
 
+// Minimalist theme selector for actions area
+function ThemeSelector() {
+  const { theme, variant, setTheme, setVariant } = useTheme();
+  
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-foreground">
-            Welcome to UIKit! 🎉
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Your project is ready to build amazing React applications
-          </p>
-          <Badge variant="secondary" className="text-lg px-4 py-2">
-            Project: ${projectName}
-          </Badge>
-        </div>
-
-        {/* Theme Controls */}
-        <Card className="bg-card text-card-foreground border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Palette className="h-5 w-5" />
-              Theme Controls
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button 
-                variant={theme === 'default' ? 'default' : 'outline'} 
-                onClick={() => setTheme('default')}
-              >
-                Default
-              </Button>
-              <Button 
-                variant={theme === 'aurora' ? 'default' : 'outline'} 
-                onClick={() => setTheme('aurora')}
-              >
-                Aurora
-              </Button>
-              <Button 
-                variant={theme === 'metro' ? 'default' : 'outline'} 
-                onClick={() => setTheme('metro')}
-              >
-                Metro
-              </Button>
-              <Button 
-                variant={theme === 'neon' ? 'default' : 'outline'} 
-                onClick={() => setTheme('neon')}
-              >
-                Neon
-              </Button>
-              <Button 
-                variant={theme === 'ruby' ? 'default' : 'outline'} 
-                onClick={() => setTheme('ruby')}
-              >
-                Ruby
-              </Button>
-              <Button 
-                variant={theme === 'studio' ? 'default' : 'outline'} 
-                onClick={() => setTheme('studio')}
-              >
-                Studio
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={toggleVariant}>
-                {variant === 'light' ? (
-                  <>
-                    <Moon className="mr-2 h-4 w-4" />
-                    Switch to Dark
-                  </>
-                ) : (
-                  <>
-                    <Sun className="mr-2 h-4 w-4" />
-                    Switch to Light
-                  </>
-                )}
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Current: {theme} ({variant})
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Sample Components */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card className="bg-card text-card-foreground border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground">Next Steps</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-muted-foreground">
-                Start building your application with UIKit components:
-              </p>
-              <div className="space-y-2 text-sm">
-                <div>• Edit <code className="bg-muted px-2 py-1 rounded">src/App.tsx</code> to get started</div>
-                <div>• Import components from <code className="bg-muted px-2 py-1 rounded">@voilajsx/uikit</code></div>
-                <div>• Use semantic colors for theme compatibility</div>
-              </div>
-              <Button size="sm" asChild>
-                <a 
-                  href="https://uikit.voilajsx.com/docs" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  View Documentation
-                </a>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card text-card-foreground border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground">Development</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-muted-foreground">
-                Development commands for your project:
-              </p>
-              <div className="space-y-2 text-sm font-mono bg-muted p-3 rounded">
-                <div>npm run dev     # Start dev server</div>
-                <div>npm run build   # Build for production</div>
-                <div>npm run preview # Preview build</div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                The dev server runs on http://localhost:5173
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+      <div className="flex items-center gap-3">
+        <Select value={theme} onValueChange={setTheme}>
+          <SelectTrigger className="w-32 h-10 border-0 bg-muted/50">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default</SelectItem>
+            <SelectItem value="ruby">Ruby</SelectItem>
+            <SelectItem value="aurora">Aurora</SelectItem>
+            <SelectItem value="neon">Neon</SelectItem>
+            <SelectItem value="studio">Studio</SelectItem>
+            <SelectItem value="metro">Metro</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        <Switch 
+          checked={variant === 'dark'} 
+          onCheckedChange={(checked) => setVariant(checked ? 'dark' : 'light')}
+        />
       </div>
     </div>
-  )
+  );
 }
 
-export default App`;
+// Elegant hero section with perfect spacing
+function HeroSection() {
+  return (
+    <section className="min-h-screen flex items-center justify-center">
+      <div className="max-w-4xl mx-auto px-8 text-center">
+        
+        {/* Status badge */}
+        <Badge 
+          variant="secondary" 
+          className="mb-8 text-xs px-3 py-1 bg-muted border-0"
+        >
+          @voilajsx/uikit
+        </Badge>
+        
+        {/* Main heading */}
+        <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-6">
+          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            UI
+          </span>
+          <span className="text-foreground">Kit</span>
+        </h1>
+        
+        {/* Subtitle */}
+        <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
+          Cross-platform React component library with builtin themes for modern development
+        </p>
+        
+        {/* Theme Controls */}
+        <div className="mb-16">
+          <ThemeSelector />
+        </div>
+        
+        {/* Features */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
+          <div className="text-center">
+            <div className="text-4xl mb-4">🎨</div>
+            <h3 className="font-semibold mb-2">Built-in Themes</h3>
+            <p className="text-sm text-muted-foreground">
+              Extensible theming with light/dark mode support
+            </p>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-4xl mb-4">📱</div>
+            <h3 className="font-semibold mb-2">Cross-Platform</h3>
+            <p className="text-sm text-muted-foreground">
+              Web, Desktop (Tauri), Mobile (Expo) ready
+            </p>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-4xl mb-4">🏗️</div>
+            <h3 className="font-semibold mb-2">Complete Library</h3>
+            <p className="text-sm text-muted-foreground">
+              Components, sections, and page layouts included
+            </p>
+          </div>
+        </div>
+        
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-8 max-w-md mx-auto text-center">
+          <div className="group cursor-pointer">
+            <div className="text-2xl font-bold text-primary group-hover:scale-110 transition-transform duration-300">
+              Easy
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              Adoption
+            </div>
+          </div>
+          <div className="group cursor-pointer">
+            <div className="text-2xl font-bold text-primary group-hover:scale-110 transition-transform duration-300">
+              Plug & Play
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              Ready
+            </div>
+          </div>
+          <div className="group cursor-pointer">
+            <div className="text-2xl font-bold text-primary group-hover:scale-110 transition-transform duration-300">
+              Simple
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              Setup
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+  );
+}
+
+// Main content
+function AppContent() {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <HeroSection />
+    </div>
+  );
+}
+
+// Main app
+export default function App() {
+  return (
+    <ThemeProvider theme="default" variant="light" detectSystem={true}>
+      <AppContent />
+    </ThemeProvider>
+  );
+}`;
 
   fs.writeFileSync('src/App.tsx', appTsx);
 
@@ -367,10 +374,13 @@ dist-ssr
   log('   This may take a few minutes...', 'blue');
 
   try {
-    execSync('npm install', { stdio: 'inherit' });
+    execSync('npm install --legacy-peer-deps', { stdio: 'inherit' });
   } catch (error) {
     log('❌ Failed to install dependencies', 'red');
-    log('Run "npm install" manually in the project directory', 'yellow');
+    log(
+      'Run "npm install --legacy-peer-deps" manually in the project directory',
+      'yellow'
+    );
   }
 
   // Success message
@@ -378,7 +388,7 @@ dist-ssr
   log('\n🚀 Get started with:', 'bold');
   log(`   cd ${projectName}`, 'blue');
   log('   npm run dev', 'blue');
-  log('\n📖 Documentation: https://uikit.voilajsx.com', 'green');
+  log('\n📖 Documentation: https://voilajsx.github.io/uikit/', 'green');
   log('🎨 Themes: 6 professional themes included', 'green');
   log('🧱 Components: 35+ shadcn/ui components enhanced', 'green');
 }
