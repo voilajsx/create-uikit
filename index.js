@@ -39,7 +39,7 @@ function parseArguments() {
   // Parse arguments
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-
+    
     if (arg === '--jsx' || arg === '-j') {
       useJsx = true;
     } else if (!arg.startsWith('-')) {
@@ -55,7 +55,7 @@ function generateProjectName(projectPath) {
   // /apps/auth/core -> apps-auth-core
   // auth/dashboard -> auth-dashboard
   // my-app -> my-app
-
+  
   const normalizedPath = projectPath
     .replace(/^\/+|\/+$/g, '') // Remove leading/trailing slashes
     .replace(/\/+/g, '-') // Replace slashes with dashes
@@ -112,13 +112,11 @@ function createProject() {
       '@vitejs/plugin-react': '^4.5.2',
       '@tailwindcss/vite': '^4.1.10',
       vite: '^6.3.5',
-      ...(useJsx
-        ? {}
-        : {
-            '@types/react': '^18.3.12',
-            '@types/react-dom': '^18.3.1',
-            typescript: '^5.8.3',
-          }),
+      ...(useJsx ? {} : {
+        '@types/react': '^18.3.12',
+        '@types/react-dom': '^18.3.1',
+        typescript: '^5.8.3',
+      }),
     },
   };
 
@@ -180,10 +178,7 @@ export default defineConfig({
       include: ['vite.config.ts'],
     };
 
-    fs.writeFileSync(
-      'tsconfig.node.json',
-      JSON.stringify(tsConfigNode, null, 2)
-    );
+    fs.writeFileSync('tsconfig.node.json', JSON.stringify(tsConfigNode, null, 2));
   }
 
   // Create Tailwind CSS v4 config
@@ -293,7 +288,7 @@ function HeroSection() {
           variant="secondary" 
           className="mb-8 text-xs px-3 py-1 bg-muted border-0"
         >
-          {projectName}
+          @voilajsx/uikit
         </Badge>
         
         {/* Main heading */}
