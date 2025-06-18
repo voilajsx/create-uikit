@@ -1,12 +1,24 @@
 # create-uikit
 
-Create VoilaJS UIKit applications with one command.
+🚀 **Instantly scaffold beautiful React applications** with VoilaJS UIKit - a comprehensive component library featuring 6 professional themes, 35+ components, and cross-platform support.
+
+Get a production-ready TypeScript + React + Tailwind CSS project in seconds, complete with theme switching, responsive design, and enterprise-grade components.
 
 ## Quick Start
+
+**Method 1: npx (Recommended)**
+
+```bash
+npx create-uikit
+```
+
+**Method 2: npm**
 
 ```bash
 npm create uikit
 ```
+
+> **Note:** Method 1 supports all `--flags` (like `--jsx`, `--help`). Method 2 has limited flag support due to npm restrictions.
 
 ## Usage
 
@@ -14,26 +26,26 @@ npm create uikit
 
 ```bash
 # Create with default name (voilajs-uikit-app)
-npm create uikit
+npx create-uikit
 
 # Create with custom name
-npm create uikit my-awesome-app
+npx create-uikit my-awesome-app
 
 # Create with nested path (perfect for VoilaJS apps)
-npm create uikit apps/auth/dashboard
+npx create-uikit apps/auth/frontend
 ```
 
 ### Options
 
 ```bash
 # Use JSX instead of TypeScript
-npm create uikit my-app --jsx
+npx create-uikit my-app --jsx
 
 # Combine path and JSX option
-npm create uikit apps/admin/panel --jsx
+npx create-uikit apps/admin/panel --jsx
 
 # Get help
-npm create uikit --help
+npx create-uikit --help
 ```
 
 ## Path-Based Naming
@@ -100,29 +112,29 @@ my-app/
 
 ```bash
 # Create main app
-npm create uikit apps/main
+npx create-uikit apps/main
 
 # Create authentication app
-npm create uikit apps/auth --jsx
+npx create-uikit apps/auth --jsx
 
 # Create admin dashboard
-npm create uikit apps/admin/dashboard
+npx create-uikit apps/admin/dashboard
 
 # Create user management
-npm create uikit apps/user-management/core
+npx create-uikit apps/user-management/core
 ```
 
 ### Standalone Applications
 
 ```bash
 # Personal portfolio
-npm create uikit portfolio
+npx create-uikit portfolio
 
 # Company website
-npm create uikit company-site --jsx
+npx create-uikit company-site --jsx
 
 # Documentation site
-npm create uikit docs/website
+npx create-uikit docs/website
 ```
 
 ## Development Workflow
@@ -147,8 +159,8 @@ This CLI is perfect for creating frontend apps within the VoilaJS framework:
 
 ```bash
 # In your VoilaJS project root
-npm create uikit apps/auth/frontend
-npm create uikit apps/dashboard/frontend --jsx
+npx create-uikit apps/auth/frontend
+npx create-uikit apps/dashboard/frontend --jsx
 ```
 
 The generated apps work seamlessly with VoilaJS backend APIs and follow the framework's conventions.
@@ -220,11 +232,21 @@ All shadcn/ui components enhanced with theming:
 npm install --legacy-peer-deps
 ```
 
+### Alternative Installation Method
+
+```bash
+# You can also use npm create (less reliable with flags):
+npm create uikit my-app
+
+# For JSX with npm create, add jsx as a word:
+npm create uikit my-app jsx
+```
+
 ### Path Issues on Windows
 
 ```bash
 # Use forward slashes even on Windows:
-npm create uikit apps/auth/core
+npx create-uikit apps/auth/core
 ```
 
 ### Existing Directory
@@ -234,10 +256,20 @@ npm create uikit apps/auth/core
 # Choose a different path or remove existing directory
 ```
 
+## Why npx?
+
+We recommend `npx create-uikit` over `npm create uikit` because:
+
+- ✅ **Full flag support** (`--jsx`, `--help` work properly)
+- ✅ **Always latest version** (npx downloads latest automatically)
+- ✅ **No conflicts** with npm's built-in argument handling
+- ✅ **Standard practice** (most modern CLIs use npx)
+
 ## Support
 
 - 📖 [UIKit Documentation](https://voilajsx.github.io/uikit/)
 - 🐛 [Report Issues](https://github.com/voilajsx/uikit/issues)
+- 💬 [Community Discord](https://discord.gg/voilajsx)
 
 ## License
 
