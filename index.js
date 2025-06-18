@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * create-uikit - Ultra-simple CLI for UIKit projects
- * Usage: npm create uikit
+ * create-uikit - Ultra-simple CLI for UIKit projects with JSX option and path-based naming
+ * Usage: npm create uikit [path] [--jsx]
  * @module create-uikit
  * @file index.js
  */
@@ -24,30 +24,73 @@ const colors = {
   red: '\x1b[31m',
   reset: '\x1b[0m',
   bold: '\x1b[1m',
+  cyan: '\x1b[36m',
 };
 
 function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
+function parseArguments() {
+  const args = process.argv.slice(2);
+  let projectPath = 'voilajs-uikit-app';
+  let useJsx = false;
+
+  // Parse arguments
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === '--jsx' || arg === '-j') {
+      useJsx = true;
+    } else if (!arg.startsWith('-')) {
+      projectPath = arg;
+    }
+  }
+
+  return { projectPath, useJsx };
+}
+
+function generateProjectName(projectPath) {
+  // Convert path to package name format
+  // /apps/auth/core -> apps-auth-core
+  // auth/dashboard -> auth-dashboard
+  // my-app -> my-app
+
+  const normalizedPath = projectPath
+    .replace(/^\/+|\/+$/g, '') // Remove leading/trailing slashes
+    .replace(/\/+/g, '-') // Replace slashes with dashes
+    .toLowerCase() // Convert to lowercase
+    .replace(/[^a-z0-9-]/g, '') // Remove invalid characters
+    .replace(/-+/g, '-') // Collapse multiple dashes
+    .replace(/^-|-$/g, ''); // Remove leading/trailing dashes
+
+  return normalizedPath || 'voilajs-uikit-app';
+}
+
 function createProject() {
-  const projectName = process.argv[2] || 'voilajs-uikit-app';
-  const projectPath = path.join(process.cwd(), projectName);
+  const { projectPath, useJsx } = parseArguments();
+  const projectName = generateProjectName(projectPath);
+  const fullProjectPath = path.join(process.cwd(), projectPath);
+  const fileExtension = useJsx ? 'jsx' : 'tsx';
+  const mainFile = useJsx ? 'main.jsx' : 'main.tsx';
+  const appFile = useJsx ? 'App.jsx' : 'App.tsx';
 
   log('\n🚀 Creating UIKit project...', 'blue');
-  log(`📁 Project: ${projectName}`, 'green');
+  log(`📁 Project path: ${projectPath}`, 'green');
+  log(`📦 Project name: ${projectName}`, 'green');
+  log(`⚛️  File type: ${useJsx ? 'JSX' : 'TypeScript'}`, 'cyan');
 
   // Check if directory exists
-  if (fs.existsSync(projectPath)) {
-    log(`❌ Directory ${projectName} already exists!`, 'red');
+  if (fs.existsSync(fullProjectPath)) {
+    log(`❌ Directory ${projectPath} already exists!`, 'red');
     process.exit(1);
   }
 
   // Create project directory
-  fs.mkdirSync(projectPath, { recursive: true });
-  process.chdir(projectPath);
+  fs.mkdirSync(fullProjectPath, { recursive: true });
+  process.chdir(fullProjectPath);
 
-  // Create package.json
+  // Create package.json with dynamic name
   log('📦 Creating package.json...', 'yellow');
   const packageJson = {
     name: projectName,
@@ -66,19 +109,24 @@ function createProject() {
       'lucide-react': '^0.515.0',
     },
     devDependencies: {
-      '@types/react': '^18.3.12',
-      '@types/react-dom': '^18.3.1',
       '@vitejs/plugin-react': '^4.5.2',
       '@tailwindcss/vite': '^4.1.10',
-      typescript: '^5.8.3',
       vite: '^6.3.5',
+      ...(useJsx
+        ? {}
+        : {
+            '@types/react': '^18.3.12',
+            '@types/react-dom': '^18.3.1',
+            typescript: '^5.8.3',
+          }),
     },
   };
 
   fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
 
-  // Create vite.config.ts with Tailwind v4 setup
+  // Create vite.config with appropriate extension
   log('⚡ Setting up Vite config...', 'yellow');
+  const viteConfigFile = useJsx ? 'vite.config.js' : 'vite.config.ts';
   const viteConfig = `import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -91,47 +139,52 @@ export default defineConfig({
   ],
 })`;
 
-  fs.writeFileSync('vite.config.ts', viteConfig);
+  fs.writeFileSync(viteConfigFile, viteConfig);
 
-  // Create tsconfig.json
-  log('📝 Setting up TypeScript...', 'yellow');
-  const tsConfig = {
-    compilerOptions: {
-      target: 'ES2020',
-      useDefineForClassFields: true,
-      lib: ['ES2020', 'DOM', 'DOM.Iterable'],
-      module: 'ESNext',
-      skipLibCheck: true,
-      moduleResolution: 'bundler',
-      allowImportingTsExtensions: true,
-      resolveJsonModule: true,
-      isolatedModules: true,
-      noEmit: true,
-      jsx: 'react-jsx',
-      strict: true,
-      noUnusedLocals: true,
-      noUnusedParameters: true,
-      noFallthroughCasesInSwitch: true,
-    },
-    include: ['src'],
-    references: [{ path: './tsconfig.node.json' }],
-  };
+  // Create TypeScript config only if not using JSX
+  if (!useJsx) {
+    log('📝 Setting up TypeScript...', 'yellow');
+    const tsConfig = {
+      compilerOptions: {
+        target: 'ES2020',
+        useDefineForClassFields: true,
+        lib: ['ES2020', 'DOM', 'DOM.Iterable'],
+        module: 'ESNext',
+        skipLibCheck: true,
+        moduleResolution: 'bundler',
+        allowImportingTsExtensions: true,
+        resolveJsonModule: true,
+        isolatedModules: true,
+        noEmit: true,
+        jsx: 'react-jsx',
+        strict: true,
+        noUnusedLocals: true,
+        noUnusedParameters: true,
+        noFallthroughCasesInSwitch: true,
+      },
+      include: ['src'],
+      references: [{ path: './tsconfig.node.json' }],
+    };
 
-  fs.writeFileSync('tsconfig.json', JSON.stringify(tsConfig, null, 2));
+    fs.writeFileSync('tsconfig.json', JSON.stringify(tsConfig, null, 2));
 
-  // Create tsconfig.node.json
-  const tsConfigNode = {
-    compilerOptions: {
-      composite: true,
-      skipLibCheck: true,
-      module: 'ESNext',
-      moduleResolution: 'bundler',
-      allowSyntheticDefaultImports: true,
-    },
-    include: ['vite.config.ts'],
-  };
+    // Create tsconfig.node.json
+    const tsConfigNode = {
+      compilerOptions: {
+        composite: true,
+        skipLibCheck: true,
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        allowSyntheticDefaultImports: true,
+      },
+      include: ['vite.config.ts'],
+    };
 
-  fs.writeFileSync('tsconfig.node.json', JSON.stringify(tsConfigNode, null, 2));
+    fs.writeFileSync(
+      'tsconfig.node.json',
+      JSON.stringify(tsConfigNode, null, 2)
+    );
+  }
 
   // Create Tailwind CSS v4 config
   log('🎨 Setting up Tailwind CSS v4...', 'yellow');
@@ -152,18 +205,18 @@ export default defineConfig({
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/${mainFile}"></script>
   </body>
 </html>`;
 
   fs.writeFileSync('index.html', indexHtml);
 
-  // Create main.tsx
-  log('⚛️ Creating React app...', 'yellow');
-  const mainTsx = `/**
+  // Create main file (JSX or TSX)
+  log(`⚛️ Creating React app (${fileExtension.toUpperCase()})...`, 'yellow');
+  const mainContent = `/**
  * Main application entry point
  * @module ${projectName}
- * @file src/main.tsx
+ * @file src/${mainFile}
  */
 
 import React from 'react'
@@ -173,7 +226,7 @@ import '@voilajsx/uikit/styles'
 import './index.css'
 import App from './App'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+ReactDOM.createRoot(document.getElementById('root')${useJsx ? '' : '!'}).render(
   <React.StrictMode>
     <ThemeProvider theme="default" variant="light" detectSystem={true}>
       <App />
@@ -181,13 +234,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )`;
 
-  fs.writeFileSync('src/main.tsx', mainTsx);
+  fs.writeFileSync(`src/${mainFile}`, mainContent);
 
-  // Create App.tsx with beautiful landing page
-  const appTsx = `/**
+  // Create App file (JSX or TSX)
+  const appContent = `/**
  * Main App component with beautiful UIKit landing page
  * @module ${projectName}
- * @file src/App.tsx
+ * @file src/${appFile}
  */
 
 import { useState } from 'react';
@@ -240,7 +293,7 @@ function HeroSection() {
           variant="secondary" 
           className="mb-8 text-xs px-3 py-1 bg-muted border-0"
         >
-          @voilajsx/uikit
+          {projectName}
         </Badge>
         
         {/* Main heading */}
@@ -339,7 +392,7 @@ export default function App() {
   );
 }`;
 
-  fs.writeFileSync('src/App.tsx', appTsx);
+  fs.writeFileSync(`src/${appFile}`, appContent);
 
   // Create .gitignore
   const gitignore = `# Logs
@@ -386,11 +439,34 @@ dist-ssr
   // Success message
   log('\n✅ Project created successfully!', 'green');
   log('\n🚀 Get started with:', 'bold');
-  log(`   cd ${projectName}`, 'blue');
+  log(`   cd ${projectPath}`, 'blue');
   log('   npm run dev', 'blue');
   log('\n📖 Documentation: https://voilajsx.github.io/uikit/', 'green');
   log('🎨 Themes: 6 professional themes included', 'green');
   log('🧱 Components: 35+ shadcn/ui components enhanced', 'green');
+  log(`⚛️  Files: ${useJsx ? 'JSX' : 'TypeScript'} format`, 'cyan');
+}
+
+// Show usage help
+function showHelp() {
+  log('\n📖 Usage:', 'bold');
+  log('   npm create uikit [path] [--jsx]', 'blue');
+  log('\n📁 Examples:', 'bold');
+  log('   npm create uikit my-app', 'green');
+  log('   npm create uikit apps/auth/core --jsx', 'green');
+  log('   npm create uikit /dashboard/admin', 'green');
+  log('\n🔧 Options:', 'bold');
+  log('   --jsx, -j    Use JSX instead of TypeScript', 'yellow');
+  log('\n📦 Path-based naming:', 'bold');
+  log('   /apps/auth/core  →  apps-auth-core', 'cyan');
+  log('   auth/dashboard   →  auth-dashboard', 'cyan');
+  log('   my-app          →  my-app', 'cyan');
+}
+
+// Check for help flag
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  showHelp();
+  process.exit(0);
 }
 
 // Run the CLI

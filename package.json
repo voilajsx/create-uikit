@@ -1,6 +1,6 @@
 {
   "name": "create-uikit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Create VoilaJS UIKit applications with one command",
   "type": "module",
   "bin": {
@@ -26,7 +26,7 @@
     "type": "git",
     "url": "git+https://github.com/voilajsx/create-uikit.git"
   },
-  "homepage": "https://uikit.voilajsx.com",
+  "homepage": "https://voilajsx.github.io/",
   "bugs": {
     "url": "https://github.com/voilajsx/create-uikit/issues"
   },
