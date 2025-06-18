@@ -1,6 +1,6 @@
 /**
  * Main popup component for Chrome extension
- * Properly uses STORAGE_KEYS for consistent data access
+ * Provides extension UI with theme support and functionality showcase
  * @module {{PROJECT_NAME}}
  * @file src/popup/PopupApp.jsx
  * @generated create-uikit v2.0.0
@@ -11,156 +11,233 @@ import { ThemeProvider } from '@voilajsx/uikit/theme-provider';
 import { PopupLayout } from '@voilajsx/uikit/popup';
 import { Button } from '@voilajsx/uikit/button';
 import { Badge } from '@voilajsx/uikit/badge';
-import { Input } from '@voilajsx/uikit/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@voilajsx/uikit/card';
 import { Switch } from '@voilajsx/uikit/switch';
-import { Settings, Search, BookOpen } from 'lucide-react';
-import { dictionaryAPI } from '../shared/api.js';
-import { STORAGE_KEYS } from '../shared/config.js';
+import { Separator } from '@voilajsx/uikit/separator';
+import { Settings, Zap, Globe, CheckCircle, AlertCircle } from 'lucide-react';
 
+/**
+ * Main popup component for the Chrome extension
+ * Demonstrates PopupLayout usage and extension functionality
+ */
 export default function PopupApp() {
   const [isEnabled, setIsEnabled] = useState(true);
-  const [dictionaryEnabled, setDictionaryEnabled] = useState(true);
-  const [theme, setTheme] = useState('default');
-  const [searchWord, setSearchWord] = useState('');
-  const [result, setResult] = useState('');
+  const [currentTab, setCurrentTab] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [actionResult, setActionResult] = useState(null);
 
+  /**
+   * Load extension settings and current tab information
+   */
   useEffect(() => {
-    loadSettings();
+    initializePopup();
   }, []);
 
-  const loadSettings = async () => {
+  /**
+   * Initialize popup with settings and current tab info
+   */
+  const initializePopup = async () => {
     try {
-      // ✅ USING STORAGE_KEYS - proper way
-      const stored = await chrome.storage.sync.get([
-        STORAGE_KEYS.extensionEnabled,
-        STORAGE_KEYS.dictionaryEnabled,
-        STORAGE_KEYS.theme
-      ]);
-      
-      setIsEnabled(stored[STORAGE_KEYS.extensionEnabled] !== false);
-      setDictionaryEnabled(stored[STORAGE_KEYS.dictionaryEnabled] !== false);
-      setTheme(stored[STORAGE_KEYS.theme] || 'default');
+      // Load extension settings from Chrome storage
+      const stored = await chrome.storage.sync.get(['extensionEnabled']);
+      setIsEnabled(stored.extensionEnabled !== false);
+
+      // Get current tab information
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      setCurrentTab(tab);
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error('Failed to initialize popup:', error);
     }
   };
 
-  const toggleExtension = async (enabled) => {
-    setIsEnabled(enabled);
-    try {
-      // ✅ USING STORAGE_KEYS - proper way
-      await chrome.storage.sync.set({ 
-        [STORAGE_KEYS.extensionEnabled]: enabled 
-      });
-    } catch (error) {
-      console.error('Failed to save extension state:', error);
-    }
-  };
-
-  const handleWordSearch = async () => {
-    if (!searchWord.trim()) return;
-    if (!dictionaryEnabled) {
-      setResult('❌ Dictionary search is disabled');
-      return;
-    }
+  /**
+   * Execute main extension functionality
+   */
+  const handleMainAction = async () => {
+    if (!currentTab?.id || !canPerformAction()) return;
 
     setIsLoading(true);
-    setResult('');
+    setActionResult(null);
 
     try {
-      const apiResult = await dictionaryAPI.lookupWord(searchWord);
-      
-      if (apiResult.data) {
-        const { word, definitions } = apiResult.data;
-        const firstDef = definitions[0];
-        setResult(`📖 **${word}**\n${firstDef.partOfSpeech}\n\n${firstDef.text}`);
+      // Send message to content script
+      const response = await chrome.tabs.sendMessage(currentTab.id, {
+        action: 'performMainAction',
+        enabled: isEnabled
+      });
+
+      if (response?.success) {
+        setActionResult({ type: 'success', message: 'Action completed successfully!' });
       } else {
-        setResult(`❌ ${apiResult.error}`);
+        setActionResult({ type: 'error', message: response?.error || 'Action failed' });
       }
     } catch (error) {
-      setResult('❌ Search failed');
+      console.error('Action failed:', error);
+      setActionResult({ type: 'error', message: 'Could not communicate with page' });
     } finally {
       setIsLoading(false);
+      
+      // Clear result message after 3 seconds
+      setTimeout(() => setActionResult(null), 3000);
     }
   };
 
+  /**
+   * Toggle extension enabled state
+   */
+  const toggleExtension = async (enabled) => {
+    setIsEnabled(enabled);
+    
+    try {
+      // Save setting to Chrome storage
+      await chrome.storage.sync.set({ extensionEnabled: enabled });
+    } catch (error) {
+      console.error('Failed to save setting:', error);
+    }
+  };
+
+  /**
+   * Open extension options page
+   */
   const openOptions = () => {
     chrome.runtime.openOptionsPage();
   };
 
+  /**
+   * Check if current page supports extension actions
+   */
+  const canPerformAction = () => {
+    if (!currentTab?.url) return false;
+    
+    const unsupportedUrls = ['chrome://', 'chrome-extension://', 'moz-extension://'];
+    return !unsupportedUrls.some(prefix => currentTab.url.startsWith(prefix));
+  };
+
+  // Extension logo
+  const logo = (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center w-6 h-6 bg-primary rounded">
+        <Zap className="w-3 h-3 text-primary-foreground" />
+      </div>
+      <span className="font-medium">{{PROJECT_NAME}}</span>
+    </div>
+  );
+
+  // Status badge
+  const statusBadge = (
+    <Badge variant={isEnabled && canPerformAction() ? 'default' : 'secondary'}>
+      {isEnabled ? (canPerformAction() ? 'Ready' : 'Unavailable') : 'Disabled'}
+    </Badge>
+  );
+
+  // Header actions
+  const headerActions = (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={openOptions}
+      title="Open settings"
+      className="h-6 w-6 p-0"
+    >
+      <Settings className="h-4 w-4" />
+    </Button>
+  );
+
   return (
-    <ThemeProvider theme={theme} variant="light">
+    <ThemeProvider theme="metro" variant="light">
       <PopupLayout
         variant="default"
         size="md"
-        title="{{PROJECT_NAME}}"
-        badge={<Badge variant={isEnabled ? 'default' : 'secondary'}>
-          {isEnabled ? 'On' : 'Off'}
-        </Badge>}
-        headerActions={
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={isEnabled}
-              onCheckedChange={toggleExtension}
-              size="sm"
-            />
-            <Button variant="ghost" size="sm" onClick={openOptions}>
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        }
-        className="border-0 shadow-none rounded-none"
+        logo={logo}
+        badge={statusBadge}
+        headerActions={headerActions}
+        subtitle="Chrome Extension"
+        className="rounded-none border-0 shadow-none"
       >
         <div className="space-y-4">
           
-          {/* Dictionary Search */}
-          {dictionaryEnabled && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Dictionary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter word..."
-                    value={searchWord}
-                    onChange={(e) => setSearchWord(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleWordSearch()}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={handleWordSearch}
-                    disabled={!searchWord.trim() || isLoading}
-                    size="sm"
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
+          {/* Main action */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Extension Control</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              
+              {/* Enable/disable toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium">Enable Extension</div>
+                  <div className="text-xs text-muted-foreground">
+                    Activate extension functionality
+                  </div>
                 </div>
+                <Switch
+                  checked={isEnabled}
+                  onCheckedChange={toggleExtension}
+                />
+              </div>
 
-                {result && (
-                  <div className="text-sm p-3 bg-muted rounded whitespace-pre-line">
-                    {result}
-                  </div>
-                )}
+              <Separator />
 
-                {isLoading && (
-                  <div className="text-sm text-center py-2 text-muted-foreground">
-                    Searching...
-                  </div>
+              {/* Main action button */}
+              <Button
+                onClick={handleMainAction}
+                disabled={!isEnabled || !canPerformAction() || isLoading}
+                className="w-full"
+                variant={isEnabled && canPerformAction() ? 'default' : 'secondary'}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-background border-t-transparent mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Perform Action
+                  </>
                 )}
+              </Button>
+
+              {/* Action result */}
+              {actionResult && (
+                <div className={`flex items-center gap-2 text-sm ${
+                  actionResult.type === 'success' 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : 'text-destructive'
+                }`}>
+                  {actionResult.type === 'success' ? (
+                    <CheckCircle className="w-4 h-4" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4" />
+                  )}
+                  {actionResult.message}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Current page info */}
+          {currentTab && (
+            <Card>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Globe className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{currentTab.title}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {new URL(currentTab.url).hostname}
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Status */}
-          {!dictionaryEnabled && (
+          {/* Status message for unsupported pages */}
+          {!canPerformAction() && currentTab && (
             <div className="text-center text-sm text-muted-foreground py-2">
-              Dictionary search disabled. Enable in settings.
+              Extension not available on this page type
             </div>
           )}
         </div>

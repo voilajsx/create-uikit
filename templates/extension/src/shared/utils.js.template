@@ -1,39 +1,400 @@
 /**
  * Utility functions for Chrome extension operations
- * Essential utilities for basic extension functionality
+ * Storage helpers, messaging utilities, and common functions
  * @module {{PROJECT_NAME}}
  * @file src/shared/utils.js
  * @generated create-uikit v2.0.0
  */
 
-// Chrome storage utilities
+import { STORAGE_KEYS, DEBUG, ERROR_CODES } from './config.js';
+
+// Chrome storage utilities with error handling
 export const storage = {
   /**
-   * Get data from Chrome storage
-   * @param {string|array} keys - Storage keys to retrieve
+   * Get data from Chrome storage with error handling
+   * @param {string|array|object} keys - Storage keys to retrieve
+   * @param {string} [namespace='sync'] - Storage namespace (sync/local)
    * @returns {Promise<object>} Storage data
    */
-  async get(keys) {
+  async get(keys, namespace = 'sync') {
     try {
-      return await chrome.storage.sync.get(keys);
+      const storageArea = chrome.storage[namespace];
+      const result = await storageArea.get(keys);
+      debug.log('Storage get:', { keys, namespace, result });
+      return result;
     } catch (error) {
-      console.error('Storage get failed:', error);
-      return {};
+      debug.error('Storage get failed:', error);
+      throw new StorageError('Failed to read from storage', error);
     }
   },
 
   /**
-   * Set data to Chrome storage
+   * Set data to Chrome storage with validation
    * @param {object} data - Data to store
+   * @param {string} [namespace='sync'] - Storage namespace (sync/local)
    * @returns {Promise<boolean>} Success status
    */
-  async set(data) {
+  async set(data, namespace = 'sync') {
     try {
-      await chrome.storage.sync.set(data);
+      // Validate data size for sync storage
+      if (namespace === 'sync') {
+        const size = JSON.stringify(data).length;
+        if (size > chrome.storage.sync.QUOTA_BYTES) {
+          throw new Error(`Data too large for sync storage: ${size} bytes`);
+        }
+      }
+
+      const storageArea = chrome.storage[namespace];
+      await storageArea.set(data);
+      debug.log('Storage set:', { data, namespace });
       return true;
     } catch (error) {
-      console.error('Storage set failed:', error);
+      debug.error('Storage set failed:', error);
+      throw new StorageError('Failed to write to storage', error);
+    }
+  },
+
+  /**
+   * Remove data from Chrome storage
+   * @param {string|array} keys - Keys to remove
+   * @param {string} [namespace='sync'] - Storage namespace (sync/local)
+   * @returns {Promise<boolean>} Success status
+   */
+  async remove(keys, namespace = 'sync') {
+    try {
+      const storageArea = chrome.storage[namespace];
+      await storageArea.remove(keys);
+      debug.log('Storage remove:', { keys, namespace });
+      return true;
+    } catch (error) {
+      debug.error('Storage remove failed:', error);
+      throw new StorageError('Failed to remove from storage', error);
+    }
+  },
+
+  /**
+   * Clear all data from Chrome storage
+   * @param {string} [namespace='sync'] - Storage namespace (sync/local)
+   * @returns {Promise<boolean>} Success status
+   */
+  async clear(namespace = 'sync') {
+    try {
+      const storageArea = chrome.storage[namespace];
+      await storageArea.clear();
+      debug.log('Storage cleared:', { namespace });
+      return true;
+    } catch (error) {
+      debug.error('Storage clear failed:', error);
+      throw new StorageError('Failed to clear storage', error);
+    }
+  },
+
+  /**
+   * Get storage usage information
+   * @param {string} [namespace='sync'] - Storage namespace (sync/local)
+   * @returns {Promise<object>} Usage information
+   */
+  async getUsage(namespace = 'sync') {
+    try {
+      const storageArea = chrome.storage[namespace];
+      const usage = await storageArea.getBytesInUse();
+      const quota = namespace === 'sync' 
+        ? chrome.storage.sync.QUOTA_BYTES 
+        : chrome.storage.local.QUOTA_BYTES;
+      
+      return {
+        used: usage,
+        total: quota,
+        percentage: Math.round((usage / quota) * 100),
+        available: quota - usage,
+      };
+    } catch (error) {
+      debug.error('Storage usage check failed:', error);
+      return { used: 0, total: 0, percentage: 0, available: 0 };
+    }
+  },
+};
+
+// Chrome messaging utilities
+export const messaging = {
+  /**
+   * Send message to content script with error handling
+   * @param {object} message - Message to send
+   * @param {number} [tabId] - Specific tab ID (defaults to active tab)
+   * @returns {Promise<object>} Response from content script
+   */
+  async sendToContent(message, tabId = null) {
+    try {
+      let targetTabId = tabId;
+      
+      if (!targetTabId) {
+        const [activeTab] = await chrome.tabs.query({ 
+          active: true, 
+          currentWindow: true 
+        });
+        targetTabId = activeTab?.id;
+      }
+
+      if (!targetTabId) {
+        throw new Error('No active tab found');
+      }
+
+      debug.log('Sending message to content script:', { message, targetTabId });
+      
+      const response = await chrome.tabs.sendMessage(targetTabId, message);
+      debug.log('Content script response:', response);
+      
+      return response || { success: false, error: 'No response' };
+    } catch (error) {
+      debug.error('Content script message failed:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to communicate with page',
+        code: ERROR_CODES.CONTENT_SCRIPT_NOT_FOUND.code,
+      };
+    }
+  },
+
+  /**
+   * Send message to background script
+   * @param {object} message - Message to send
+   * @returns {Promise<object>} Response from background
+   */
+  async sendToBackground(message) {
+    try {
+      debug.log('Sending message to background:', message);
+      
+      const response = await chrome.runtime.sendMessage(message);
+      debug.log('Background response:', response);
+      
+      return response || { success: false, error: 'No response' };
+    } catch (error) {
+      debug.error('Background message failed:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Background script unavailable' 
+      };
+    }
+  },
+
+  /**
+   * Broadcast message to all extension contexts
+   * @param {object} message - Message to broadcast
+   * @returns {Promise<array>} Responses from all contexts
+   */
+  async broadcast(message) {
+    try {
+      const responses = [];
+      
+      // Send to background
+      const bgResponse = await this.sendToBackground(message);
+      responses.push({ context: 'background', response: bgResponse });
+      
+      // Send to all tabs with content scripts
+      const tabs = await chrome.tabs.query({});
+      for (const tab of tabs) {
+        try {
+          const tabResponse = await chrome.tabs.sendMessage(tab.id, message);
+          responses.push({ context: `tab-${tab.id}`, response: tabResponse });
+        } catch (error) {
+          // Tab might not have content script, which is fine
+          debug.log(`Tab ${tab.id} not responsive:`, error.message);
+        }
+      }
+      
+      return responses;
+    } catch (error) {
+      debug.error('Broadcast failed:', error);
+      return [];
+    }
+  },
+};
+
+// Tab management utilities
+export const tabs = {
+  /**
+   * Get current active tab
+   * @returns {Promise<object|null>} Active tab or null
+   */
+  async getActive() {
+    try {
+      const [activeTab] = await chrome.tabs.query({ 
+        active: true, 
+        currentWindow: true 
+      });
+      return activeTab || null;
+    } catch (error) {
+      debug.error('Failed to get active tab:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Check if tab supports extension functionality
+   * @param {object|string} tab - Tab object or URL string
+   * @returns {boolean} True if tab is supported
+   */
+  isSupported(tab) {
+    const url = typeof tab === 'string' ? tab : tab?.url;
+    if (!url) return false;
+
+    const unsupportedPrefixes = [
+      'chrome://',
+      'chrome-extension://',
+      'moz-extension://',
+      'about:',
+      'file://',
+      'ftp://',
+    ];
+
+    return !unsupportedPrefixes.some(prefix => url.startsWith(prefix));
+  },
+
+  /**
+   * Open extension options page
+   * @returns {Promise<boolean>} Success status
+   */
+  async openOptions() {
+    try {
+      await chrome.runtime.openOptionsPage();
+      return true;
+    } catch (error) {
+      debug.error('Failed to open options:', error);
       return false;
+    }
+  },
+
+  /**
+   * Create new tab with URL
+   * @param {string} url - URL to open
+   * @param {boolean} [active=true] - Whether tab should be active
+   * @returns {Promise<object|null>} Created tab or null
+   */
+  async create(url, active = true) {
+    try {
+      const tab = await chrome.tabs.create({ url, active });
+      return tab;
+    } catch (error) {
+      debug.error('Failed to create tab:', error);
+      return null;
+    }
+  },
+};
+
+// Utility functions for data processing
+export const utils = {
+  /**
+   * Debounce function execution
+   * @param {function} func - Function to debounce
+   * @param {number} delay - Delay in milliseconds
+   * @returns {function} Debounced function
+   */
+  debounce(func, delay) {
+    let timeoutId;
+    return function (...args) {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
+  },
+
+  /**
+   * Throttle function execution
+   * @param {function} func - Function to throttle
+   * @param {number} limit - Time limit in milliseconds
+   * @returns {function} Throttled function
+   */
+  throttle(func, limit) {
+    let inThrottle;
+    return function (...args) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => (inThrottle = false), limit);
+      }
+    };
+  },
+
+  /**
+   * Retry function with exponential backoff
+   * @param {function} func - Function to retry
+   * @param {number} [maxRetries=3] - Maximum retry attempts
+   * @param {number} [baseDelay=1000] - Base delay in milliseconds
+   * @returns {Promise<any>} Function result
+   */
+  async retry(func, maxRetries = 3, baseDelay = 1000) {
+    let lastError;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await func();
+      } catch (error) {
+        lastError = error;
+        
+        if (attempt === maxRetries) break;
+        
+        const delay = baseDelay * Math.pow(2, attempt);
+        debug.log(`Retry attempt ${attempt + 1} after ${delay}ms:`, error.message);
+        await this.sleep(delay);
+      }
+    }
+    
+    throw lastError;
+  },
+
+  /**
+   * Sleep for specified duration
+   * @param {number} ms - Milliseconds to sleep
+   * @returns {Promise<void>} Promise that resolves after delay
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  },
+
+  /**
+   * Generate unique ID
+   * @param {number} [length=8] - ID length
+   * @returns {string} Unique ID
+   */
+  generateId(length = 8) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  },
+
+  /**
+   * Format timestamp as readable string
+   * @param {number} [timestamp=Date.now()] - Timestamp to format
+   * @returns {string} Formatted timestamp
+   */
+  formatTimestamp(timestamp = Date.now()) {
+    return new Date(timestamp).toLocaleString();
+  },
+
+  /**
+   * Sanitize HTML content
+   * @param {string} html - HTML content to sanitize
+   * @returns {string} Sanitized HTML
+   */
+  sanitizeHtml(html) {
+    const div = document.createElement('div');
+    div.textContent = html;
+    return div.innerHTML;
+  },
+
+  /**
+   * Parse URL safely
+   * @param {string} url - URL to parse
+   * @returns {URL|null} Parsed URL or null if invalid
+   */
+  parseUrl(url) {
+    try {
+      return new URL(url);
+    } catch (error) {
+      debug.log('Invalid URL:', url);
+      return null;
     }
   },
 };
@@ -41,32 +402,97 @@ export const storage = {
 // Debug utilities
 export const debug = {
   /**
-   * Log debug message with extension prefix
-   * @param {string} message - Debug message
-   * @param {...any} args - Additional arguments
+   * Log message if debug is enabled
+   * @param {...any} args - Arguments to log
    */
-  log(message, ...args) {
-    console.log(`[{{PROJECT_NAME}}]`, message, ...args);
+  log(...args) {
+    if (DEBUG.enabled && DEBUG.logToConsole) {
+      console.log(`[{{PROJECT_NAME}}]`, ...args);
+    }
   },
 
   /**
-   * Log error message with extension prefix
+   * Log warning message
+   * @param {...any} args - Arguments to log
+   */
+  warn(...args) {
+    if (DEBUG.enabled && DEBUG.logToConsole) {
+      console.warn(`[{{PROJECT_NAME}}]`, ...args);
+    }
+  },
+
+  /**
+   * Log error with context
    * @param {string} message - Error message
    * @param {Error} error - Error object
    */
   error(message, error) {
-    console.error(`[{{PROJECT_NAME}}]`, message, error);
+    const errorInfo = {
+      message,
+      error: error?.message || error,
+      stack: error?.stack,
+      timestamp: Date.now(),
+    };
+
+    if (DEBUG.enabled && DEBUG.logToConsole) {
+      console.error(`[{{PROJECT_NAME}}]`, errorInfo);
+    }
+
+    // Store error in storage if enabled
+    if (DEBUG.logToStorage) {
+      this.storeError(errorInfo);
+    }
+  },
+
+  /**
+   * Store error in extension storage
+   * @param {object} errorInfo - Error information
+   */
+  async storeError(errorInfo) {
+    try {
+      const stored = await storage.get(STORAGE_KEYS.analytics, 'local');
+      const errors = stored[STORAGE_KEYS.analytics]?.errors || [];
+      
+      errors.push(errorInfo);
+      
+      // Keep only recent errors
+      if (errors.length > DEBUG.maxLogEntries) {
+        errors.splice(0, errors.length - DEBUG.maxLogEntries);
+      }
+      
+      await storage.set({
+        [STORAGE_KEYS.analytics]: { 
+          ...stored[STORAGE_KEYS.analytics], 
+          errors 
+        }
+      }, 'local');
+    } catch (error) {
+      console.error('Failed to store error:', error);
+    }
   },
 };
 
-// Essential utility functions
-export const utils = {
-  /**
-   * Sleep for specified milliseconds
-   * @param {number} ms - Milliseconds to sleep
-   * @returns {Promise<void>} Promise that resolves after delay
-   */
-  sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  },
-};
+// Custom error classes
+export class StorageError extends Error {
+  constructor(message, originalError) {
+    super(message);
+    this.name = 'StorageError';
+    this.originalError = originalError;
+  }
+}
+
+export class MessagingError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.name = 'MessagingError';
+    this.code = code;
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(message, field) {
+    super(message);
+    this.name = 'ValidationError';
+    this.field = field;
+  }
+}

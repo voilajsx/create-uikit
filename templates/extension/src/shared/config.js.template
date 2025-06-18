@@ -1,79 +1,260 @@
 /**
  * Extension configuration constants and default settings
- * Essential configuration for dictionary extension
+ * Centralized configuration for consistent behavior across components
  * @module {{PROJECT_NAME}}
  * @file src/shared/config.js
  * @generated create-uikit v2.0.0
  */
 
-// Extension information
+// Extension metadata and information
 export const EXTENSION_INFO = {
   name: '{{PROJECT_NAME}}',
   version: '1.0.0',
   author: '{{AUTHOR}}',
   description: '{{DESCRIPTION}}',
+  homepage: 'https://github.com/{{AUTHOR}}/{{PACKAGE_NAME}}',
+  supportUrl: 'https://github.com/{{AUTHOR}}/{{PACKAGE_NAME}}/issues',
 };
 
-// Default settings
+// Default user settings for the extension
 export const DEFAULT_SETTINGS = {
-  extensionEnabled: true,
-  dictionaryEnabled: true,
-  theme: 'default',
-  notifications: true,
+  // Core functionality
+  extensionEnabled: true,          // Master enable/disable switch
+  autoMode: false,                 // Automatic operation mode
+  notificationsEnabled: true,      // Show notifications for actions
+  
+  // UI preferences
+  theme: 'metro',                  // UIKit theme (metro recommended for extensions)
+  themeVariant: 'light',          // Theme variant (light/dark)
+  
+  // Feature-specific settings (customize based on your extension)
+  processingMode: 'smart',         // smart, fast, detailed
+  maxResults: 10,                  // Maximum results to show
+  showAdvancedOptions: false,      // Show advanced configuration options
 };
 
-// Available themes
-export const THEMES = [
-  { 
-    id: 'default', 
-    name: 'Default', 
-    description: 'Ocean blue professional colors',
-    badge: 'Professional'
-  },
-  { 
-    id: 'aurora', 
-    name: 'Aurora', 
-    description: 'Northern lights purple-green gradients',
-    badge: 'Creative'
-  },
-  { 
-    id: 'metro', 
-    name: 'Metro', 
-    description: 'Clean transit-inspired gray-blue design',
-    badge: 'Minimal'
-  },
-  { 
-    id: 'neon', 
-    name: 'Neon', 
-    description: 'Electric cyberpunk magenta-cyan colors',
-    badge: 'Gaming'
-  },
-  { 
-    id: 'ruby', 
-    name: 'Ruby', 
-    description: 'Sophisticated red with gold accents',
-    badge: 'Premium'
-  },
-  { 
-    id: 'studio', 
-    name: 'Studio', 
-    description: 'Designer grays with amber accent',
-    badge: 'Designer'
-  },
-];
-
-// Storage keys
+// Chrome storage keys for consistent data access
 export const STORAGE_KEYS = {
-  extensionEnabled: 'extensionEnabled',
-  dictionaryEnabled: 'dictionaryEnabled',
-  theme: 'theme',
-  notifications: 'notifications',
+  settings: 'extension_settings',
+  tempData: 'extension_temp_data',
+  userPreferences: 'user_preferences',
+  cache: 'extension_cache',
+  analytics: 'extension_analytics',
+  
+  // Internal storage keys
+  installDate: 'install_date',
+  version: 'extension_version',
+  lastUpdate: 'last_update',
+  sessionData: 'session_data',
 };
 
-// Dictionary API configuration
-export const DICTIONARY_CONFIG = {
-  enabled: true,
-  apiUrl: 'https://api.dictionaryapi.dev/api/v2/entries/en/',
-  timeout: 8000,
-  maxWordLength: 50,
+// Extension feature configuration
+export const FEATURES = {
+  // Main functionality settings
+  contentAnalysis: {
+    enabled: true,
+    maxTextLength: 50000,          // Maximum text to process
+    minTextLength: 100,            // Minimum text required
+    excludeSelectors: [            // Elements to exclude from analysis
+      'script',
+      'style',
+      'nav',
+      'header',
+      'footer',
+      '.advertisement',
+      '.sidebar',
+    ],
+  },
+  
+  // Processing limits and timeouts
+  processing: {
+    timeout: 30000,                // Maximum processing time (ms)
+    batchSize: 50,                 // Items to process in batches
+    retryAttempts: 3,              // Retry failed operations
+    cooldownPeriod: 1000,          // Delay between operations (ms)
+  },
+  
+  // UI behavior settings
+  interface: {
+    popupWidth: 384,               // Popup width in pixels
+    popupHeight: 512,              // Popup height in pixels
+    animationDuration: 200,        // Animation duration (ms)
+    autoCloseDelay: 5000,          // Auto-close notifications (ms)
+    maxRecentItems: 20,            // Recent items to remember
+  },
+  
+  // External integrations (customize for your extension)
+  integrations: {
+    apiEnabled: true,
+    apiTimeout: 10000,             // API request timeout (ms)
+    maxApiRetries: 2,              // API retry attempts
+    cacheExpiry: 3600000,          // Cache expiry time (1 hour)
+  },
+};
+
+// Extension permissions and capabilities
+export const PERMISSIONS = {
+  required: [
+    'storage',                     // Chrome storage API
+    'activeTab',                   // Current tab access
+  ],
+  optional: [
+    'notifications',               // Browser notifications
+    'contextMenus',               // Right-click context menus
+    'background',                 // Background script
+  ],
+  hostPermissions: [
+    'https://*/*',                // HTTPS websites
+  ],
+};
+
+// Content script configuration
+export const CONTENT_SCRIPT = {
+  // Supported page types
+  supportedProtocols: ['https:', 'http:'],
+  unsupportedUrls: [
+    'chrome://',
+    'chrome-extension://',
+    'moz-extension://',
+    'about:',
+    'file://',
+    'ftp://',
+  ],
+  
+  // Content detection settings
+  contentSelectors: [
+    'main',
+    'article',
+    '[role="main"]',
+    '.content',
+    '.post',
+    '.entry-content',
+    '.article-content',
+    '.story-body',
+    '.post-content',
+  ],
+  
+  // Performance settings
+  maxDomElements: 10000,           // Maximum DOM elements to process
+  processingDelay: 100,            // Delay before processing (ms)
+  observerThrottle: 500,           // DOM observer throttle (ms)
+};
+
+// UI theme configuration for extensions
+export const UI_THEMES = {
+  default: {
+    name: 'Default',
+    description: 'Ocean blue professional colors',
+    suitableFor: ['business', 'productivity', 'general'],
+  },
+  aurora: {
+    name: 'Aurora',
+    description: 'Purple-green gradients',
+    suitableFor: ['creative', 'design', 'media'],
+  },
+  metro: {
+    name: 'Metro',
+    description: 'Clean gray-blue design',
+    suitableFor: ['utility', 'tools', 'admin'],
+    recommended: true, // Recommended for extensions
+  },
+  neon: {
+    name: 'Neon',
+    description: 'Cyberpunk magenta-cyan colors',
+    suitableFor: ['gaming', 'tech', 'entertainment'],
+  },
+  ruby: {
+    name: 'Ruby',
+    description: 'Sophisticated red-gold accents',
+    suitableFor: ['premium', 'finance', 'luxury'],
+  },
+  studio: {
+    name: 'Studio',
+    description: 'Designer grays with amber accent',
+    suitableFor: ['design', 'creative', 'professional'],
+  },
+};
+
+// Message types for inter-component communication
+export const MESSAGE_TYPES = {
+  // Popup <-> Background
+  GET_SETTINGS: 'getSettings',
+  UPDATE_SETTINGS: 'updateSettings',
+  GET_EXTENSION_INFO: 'getExtensionInfo',
+  
+  // Popup <-> Content Script
+  PING: 'ping',
+  PERFORM_ACTION: 'performMainAction',
+  ANALYZE_CONTENT: 'analyzePageContent',
+  GET_PAGE_INFO: 'getPageInfo',
+  
+  // Background coordination
+  CONTENT_READY: 'contentScriptReady',
+  TAB_UPDATED: 'tabUpdated',
+  SETTINGS_CHANGED: 'settingsChanged',
+  
+  // Data management
+  CLEAR_DATA: 'clearAllData',
+  EXPORT_DATA: 'exportData',
+  IMPORT_DATA: 'importData',
+};
+
+// Error codes and messages
+export const ERROR_CODES = {
+  CONTENT_SCRIPT_NOT_FOUND: {
+    code: 'E001',
+    message: 'Content script not available on this page',
+  },
+  PAGE_NOT_SUPPORTED: {
+    code: 'E002',
+    message: 'This page type is not supported',
+  },
+  STORAGE_ACCESS_FAILED: {
+    code: 'E003',
+    message: 'Failed to access extension storage',
+  },
+  PROCESSING_TIMEOUT: {
+    code: 'E004',
+    message: 'Operation timed out',
+  },
+  INVALID_SETTINGS: {
+    code: 'E005',
+    message: 'Invalid settings configuration',
+  },
+  API_REQUEST_FAILED: {
+    code: 'E006',
+    message: 'External API request failed',
+  },
+};
+
+// Development and debugging configuration
+export const DEBUG = {
+  enabled: false,                  // Enable debug logging
+  verbose: false,                  // Verbose logging mode
+  logLevel: 'info',               // log, info, warn, error
+  logToConsole: true,             // Log to browser console
+  logToStorage: false,            // Store logs in extension storage
+  maxLogEntries: 1000,            // Maximum stored log entries
+};
+
+// Performance monitoring thresholds
+export const PERFORMANCE = {
+  maxMemoryUsage: 50 * 1024 * 1024,  // 50MB memory limit
+  maxExecutionTime: 5000,             // 5 second execution limit
+  maxStorageSize: 10 * 1024 * 1024,   // 10MB storage limit
+  performanceChecks: true,            // Enable performance monitoring
+};
+
+// Analytics and usage tracking (if needed)
+export const ANALYTICS = {
+  enabled: false,                  // Enable usage analytics
+  trackingId: '',                 // Analytics tracking ID
+  events: {
+    EXTENSION_ACTIVATED: 'extension_activated',
+    ACTION_PERFORMED: 'action_performed',
+    SETTINGS_CHANGED: 'settings_changed',
+    ERROR_OCCURRED: 'error_occurred',
+  },
+  batchSize: 10,                  // Events to batch before sending
+  flushInterval: 300000,          // 5 minutes flush interval
 };

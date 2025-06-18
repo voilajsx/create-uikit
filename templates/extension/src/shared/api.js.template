@@ -1,111 +1,500 @@
 /**
- * Dictionary API service for word lookup
- * Essential API functionality for dictionary extension
+ * External API integration template and data fetching utilities
+ * Provides foundation for third-party service integration
  * @module {{PROJECT_NAME}}
  * @file src/shared/api.js
  * @generated create-uikit v2.0.0
  */
 
-import { DICTIONARY_CONFIG } from './config.js';
+import { FEATURES, DEBUG, ERROR_CODES } from './config.js';
 import { debug, utils } from './utils.js';
 
+// API configuration and endpoints
+const API_CONFIG = {
+  // Example API endpoints (customize for your extension)
+  baseUrl: 'https://api.example.com/v1',
+  timeout: FEATURES.integrations.apiTimeout,
+  retries: FEATURES.integrations.maxApiRetries,
+  
+  // Common endpoints
+  endpoints: {
+    search: '/search',
+    lookup: '/lookup',
+    analyze: '/analyze',
+    validate: '/validate',
+  },
+  
+  // Rate limiting
+  rateLimit: {
+    requests: 100,              // Max requests per window
+    window: 3600000,            // 1 hour window in ms
+    backoffMs: 1000,            // Backoff delay when rate limited
+  },
+};
+
 /**
- * Dictionary API service
+ * Generic API request handler with timeout and retry logic
+ * @param {string} url - API endpoint URL
+ * @param {object} [options={}] - Fetch options
+ * @returns {Promise<object>} API response data
+ */
+async function apiRequest(url, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    API_CONFIG.timeout
+  );
+
+  try {
+    debug.log('API Request:', { url, options });
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': `{{PROJECT_NAME}}/1.0.0`,
+        ...options.headers,
+      },
+      signal: controller.signal,
+      ...options,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new APIError(
+        `API Error: ${response.status} ${response.statusText}`,
+        response.status,
+        errorText
+      );
+    }
+
+    const data = await response.json();
+    debug.log('API Response:', { url, status: response.status, data });
+
+    return { data, error: null };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      debug.error('API request timeout:', url);
+      return { data: null, error: 'Request timeout' };
+    }
+    
+    debug.error('API request failed:', error);
+    return {
+      data: null,
+      error: error.message || 'Request failed',
+      code: error.code || ERROR_CODES.API_REQUEST_FAILED.code,
+    };
+  }
+}
+
+/**
+ * Rate limiting tracker
+ */
+class RateLimiter {
+  constructor() {
+    this.requests = [];
+  }
+
+  /**
+   * Check if request is allowed under rate limit
+   * @returns {boolean} True if request is allowed
+   */
+  isAllowed() {
+    const now = Date.now();
+    const windowStart = now - API_CONFIG.rateLimit.window;
+    
+    // Remove old requests outside the window
+    this.requests = this.requests.filter(timestamp => timestamp > windowStart);
+    
+    // Check if under limit
+    return this.requests.length < API_CONFIG.rateLimit.requests;
+  }
+
+  /**
+   * Record a new request
+   */
+  recordRequest() {
+    this.requests.push(Date.now());
+  }
+
+  /**
+   * Get time until next request is allowed
+   * @returns {number} Milliseconds until next request
+   */
+  getRetryAfter() {
+    if (this.requests.length === 0) return 0;
+    
+    const oldest = Math.min(...this.requests);
+    const windowEnd = oldest + API_CONFIG.rateLimit.window;
+    return Math.max(0, windowEnd - Date.now());
+  }
+}
+
+const rateLimiter = new RateLimiter();
+
+/**
+ * API client with caching and rate limiting
+ */
+export const apiClient = {
+  /**
+   * Make cached API request with rate limiting
+   * @param {string} endpoint - API endpoint
+   * @param {object} [params={}] - Query parameters
+   * @param {object} [options={}] - Request options
+   * @returns {Promise<object>} API response
+   */
+  async request(endpoint, params = {}, options = {}) {
+    // Check rate limit
+    if (!rateLimiter.isAllowed()) {
+      const retryAfter = rateLimiter.getRetryAfter();
+      debug.warn('Rate limit exceeded, retry after:', retryAfter);
+      
+      if (options.respectRateLimit !== false) {
+        await utils.sleep(Math.min(retryAfter, API_CONFIG.rateLimit.backoffMs));
+      } else {
+        return {
+          data: null,
+          error: 'Rate limit exceeded',
+          retryAfter,
+        };
+      }
+    }
+
+    // Build URL with parameters
+    const url = new URL(endpoint, API_CONFIG.baseUrl);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+
+    // Check cache first
+    const cacheKey = this.getCacheKey(url.toString(), options);
+    const cached = await this.getFromCache(cacheKey);
+    
+    if (cached && !options.skipCache) {
+      debug.log('Cache hit:', cacheKey);
+      return { data: cached, error: null, fromCache: true };
+    }
+
+    // Record request for rate limiting
+    rateLimiter.recordRequest();
+
+    // Make API request with retry logic
+    const result = await utils.retry(
+      () => apiRequest(url.toString(), options),
+      API_CONFIG.retries
+    );
+
+    // Cache successful responses
+    if (result.data && !result.error && !options.skipCache) {
+      await this.setCache(cacheKey, result.data);
+    }
+
+    return result;
+  },
+
+  /**
+   * Generate cache key for request
+   * @param {string} url - Request URL
+   * @param {object} options - Request options
+   * @returns {string} Cache key
+   */
+  getCacheKey(url, options = {}) {
+    const key = `api_cache_${url}`;
+    if (options.cacheKey) {
+      return `${key}_${options.cacheKey}`;
+    }
+    return key;
+  },
+
+  /**
+   * Get data from cache
+   * @param {string} key - Cache key
+   * @returns {Promise<any|null>} Cached data or null
+   */
+  async getFromCache(key) {
+    try {
+      const stored = await chrome.storage.local.get(key);
+      const cacheEntry = stored[key];
+      
+      if (!cacheEntry) return null;
+      
+      // Check expiry
+      if (Date.now() > cacheEntry.expiry) {
+        await chrome.storage.local.remove(key);
+        return null;
+      }
+      
+      return cacheEntry.data;
+    } catch (error) {
+      debug.error('Cache read failed:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Set data in cache
+   * @param {string} key - Cache key
+   * @param {any} data - Data to cache
+   * @returns {Promise<boolean>} Success status
+   */
+  async setCache(key, data) {
+    try {
+      const expiry = Date.now() + FEATURES.integrations.cacheExpiry;
+      await chrome.storage.local.set({
+        [key]: { data, expiry, timestamp: Date.now() }
+      });
+      return true;
+    } catch (error) {
+      debug.error('Cache write failed:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Clear all cached data
+   * @returns {Promise<boolean>} Success status
+   */
+  async clearCache() {
+    try {
+      const stored = await chrome.storage.local.get();
+      const cacheKeys = Object.keys(stored).filter(key => key.startsWith('api_cache_'));
+      
+      if (cacheKeys.length > 0) {
+        await chrome.storage.local.remove(cacheKeys);
+        debug.log('Cache cleared:', cacheKeys.length, 'entries');
+      }
+      
+      return true;
+    } catch (error) {
+      debug.error('Cache clear failed:', error);
+      return false;
+    }
+  },
+};
+
+/**
+ * Example API service - Text Analysis Service
+ * Replace with your actual API integration
+ */
+export const textAnalysisAPI = {
+  /**
+   * Analyze text content for sentiment, keywords, etc.
+   * @param {string} text - Text to analyze
+   * @param {object} [options={}] - Analysis options
+   * @returns {Promise<object>} Analysis results
+   */
+  async analyzeText(text, options = {}) {
+    if (!text || typeof text !== 'string') {
+      return { data: null, error: 'Invalid text provided' };
+    }
+
+    if (text.length > FEATURES.contentAnalysis.maxTextLength) {
+      text = text.substring(0, FEATURES.contentAnalysis.maxTextLength);
+    }
+
+    try {
+      const params = {
+        text,
+        language: options.language || 'en',
+        features: options.features || ['sentiment', 'keywords'],
+      };
+
+      const result = await apiClient.request(
+        API_CONFIG.endpoints.analyze,
+        params,
+        { 
+          method: 'POST',
+          body: JSON.stringify(params),
+          cacheKey: `text_${text.substring(0, 50)}`,
+        }
+      );
+
+      if (result.data) {
+        return {
+          data: {
+            sentiment: result.data.sentiment || 'neutral',
+            keywords: result.data.keywords || [],
+            summary: result.data.summary || '',
+            confidence: result.data.confidence || 0.5,
+            language: result.data.language || 'en',
+          },
+          error: null,
+        };
+      }
+
+      return result;
+    } catch (error) {
+      debug.error('Text analysis failed:', error);
+      return { data: null, error: error.message };
+    }
+  },
+
+  /**
+   * Extract keywords from text
+   * @param {string} text - Text to process
+   * @param {number} [maxKeywords=10] - Maximum keywords to return
+   * @returns {Promise<object>} Keywords extraction result
+   */
+  async extractKeywords(text, maxKeywords = 10) {
+    if (!text) {
+      return { data: [], error: null };
+    }
+
+    try {
+      const result = await this.analyzeText(text, {
+        features: ['keywords'],
+        maxKeywords,
+      });
+
+      return {
+        data: result.data?.keywords || [],
+        error: result.error,
+      };
+    } catch (error) {
+      debug.error('Keyword extraction failed:', error);
+      return { data: [], error: error.message };
+    }
+  },
+};
+
+/**
+ * Example API service - Dictionary/Translation Service
+ * Replace with your actual API integration
  */
 export const dictionaryAPI = {
   /**
    * Look up word definition
    * @param {string} word - Word to look up
+   * @param {string} [language='en'] - Language code
    * @returns {Promise<object>} Definition result
    */
-  async lookupWord(word) {
+  async lookupWord(word, language = 'en') {
     if (!word || typeof word !== 'string') {
       return { data: null, error: 'Invalid word provided' };
     }
 
-    const cleanWord = word.trim().toLowerCase();
-    if (cleanWord.length === 0) {
-      return { data: null, error: 'Please enter a word' };
-    }
-
-    if (cleanWord.length > DICTIONARY_CONFIG.maxWordLength) {
-      return { data: null, error: 'Word is too long' };
-    }
-
     try {
-      debug.log('Looking up word:', cleanWord);
-
-      const response = await fetch(
-        `${DICTIONARY_CONFIG.apiUrl}${encodeURIComponent(cleanWord)}`,
-        {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(DICTIONARY_CONFIG.timeout)
-        }
+      const params = { word: word.toLowerCase(), language };
+      
+      const result = await apiClient.request(
+        API_CONFIG.endpoints.lookup,
+        params,
+        { cacheKey: `word_${word}_${language}` }
       );
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          return { data: null, error: `"${word}" not found in dictionary` };
-        }
-        throw new Error(`API request failed: ${response.status}`);
+      if (result.data) {
+        return {
+          data: {
+            word: result.data.word,
+            phonetic: result.data.phonetic || '',
+            definitions: result.data.definitions || [],
+            examples: result.data.examples || [],
+            synonyms: result.data.synonyms || [],
+            audio: result.data.audio || '',
+          },
+          error: null,
+        };
       }
 
-      const data = await response.json();
-      
-      if (!data || data.length === 0) {
-        return { data: null, error: 'No definition found' };
-      }
-
-      // Parse the API response
-      const wordData = data[0];
-      const meanings = wordData.meanings || [];
-      
-      if (meanings.length === 0) {
-        return { data: null, error: 'No meanings available' };
-      }
-
-      const firstMeaning = meanings[0];
-      const definitions = firstMeaning.definitions || [];
-      
-      if (definitions.length === 0) {
-        return { data: null, error: 'No definitions available' };
-      }
-
-      const result = {
-        word: wordData.word,
-        phonetic: wordData.phonetic || '',
-        definitions: [
-          {
-            text: definitions[0].definition,
-            partOfSpeech: firstMeaning.partOfSpeech || '',
-            example: definitions[0].example || ''
-          }
-        ]
-      };
-
-      debug.log('Dictionary lookup successful for:', result.word);
-      return { data: result, error: null };
-
+      return result;
     } catch (error) {
-      debug.error('Dictionary lookup failed:', error);
-      
-      if (error.name === 'TimeoutError') {
-        return { data: null, error: 'Search timed out. Please try again.' };
-      }
-      
-      return { data: null, error: 'Dictionary service unavailable' };
+      debug.error('Word lookup failed:', error);
+      return { data: null, error: error.message };
     }
-  }
+  },
+
+  /**
+   * Get multiple word definitions
+   * @param {array} words - Array of words to look up
+   * @param {string} [language='en'] - Language code
+   * @returns {Promise<array>} Array of definition results
+   */
+  async lookupMultiple(words, language = 'en') {
+    if (!Array.isArray(words) || words.length === 0) {
+      return [];
+    }
+
+    debug.log('Looking up multiple words:', words);
+
+    // Process in batches to avoid overwhelming the API
+    const batchSize = 5;
+    const results = [];
+    
+    for (let i = 0; i < words.length; i += batchSize) {
+      const batch = words.slice(i, i + batchSize);
+      const batchPromises = batch.map(word => this.lookupWord(word, language));
+      
+      try {
+        const batchResults = await Promise.allSettled(batchPromises);
+        
+        batchResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value.data) {
+            results.push(result.value.data);
+          } else {
+            // Add placeholder for failed lookups
+            results.push({
+              word: batch[index],
+              phonetic: '',
+              definitions: [{ text: 'Definition not available', partOfSpeech: 'unknown' }],
+              examples: [],
+              synonyms: [],
+              audio: '',
+            });
+          }
+        });
+        
+        // Small delay between batches
+        if (i + batchSize < words.length) {
+          await utils.sleep(200);
+        }
+      } catch (error) {
+        debug.error('Batch lookup failed:', error);
+      }
+    }
+
+    return results;
+  },
 };
 
 /**
  * Mock API for development and testing
+ * Use when external APIs are not available or for testing
  */
 export const mockAPI = {
-  async lookupWord(word) {
+  /**
+   * Mock text analysis
+   * @param {string} text - Text to analyze
+   * @returns {Promise<object>} Mock analysis result
+   */
+  async analyzeText(text) {
+    // Simulate API delay
     await utils.sleep(500);
-    debug.log('Mock dictionary lookup for:', word);
+
+    return {
+      data: {
+        sentiment: Math.random() > 0.5 ? 'positive' : 'negative',
+        keywords: ['example', 'keyword', 'test'],
+        summary: `Mock summary for text: ${text.substring(0, 50)}...`,
+        confidence: Math.random(),
+        language: 'en',
+      },
+      error: null,
+    };
+  },
+
+  /**
+   * Mock word lookup
+   * @param {string} word - Word to look up
+   * @returns {Promise<object>} Mock definition result
+   */
+  async lookupWord(word) {
+    await utils.sleep(300);
 
     return {
       data: {
@@ -115,11 +504,41 @@ export const mockAPI = {
           {
             text: `Mock definition for the word "${word}".`,
             partOfSpeech: 'noun',
-            example: `Here is an example sentence using "${word}".`
-          }
-        ]
+          },
+        ],
+        examples: [`Here is an example sentence using "${word}".`],
+        synonyms: ['example', 'sample', 'demo'],
+        audio: '',
       },
       error: null,
     };
-  }
+  },
 };
+
+/**
+ * API factory - returns appropriate API based on configuration
+ * @param {boolean} [useMock=false] - Whether to use mock API
+ * @returns {object} API service object
+ */
+export function createAPI(useMock = DEBUG.enabled && DEBUG.mockData) {
+  return {
+    textAnalysis: useMock ? mockAPI : textAnalysisAPI,
+    dictionary: useMock ? mockAPI : dictionaryAPI,
+    client: apiClient,
+  };
+}
+
+/**
+ * Custom API error class
+ */
+export class APIError extends Error {
+  constructor(message, status, response) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+    this.response = response;
+  }
+}
+
+// Export default API instance
+export const api = createAPI();
