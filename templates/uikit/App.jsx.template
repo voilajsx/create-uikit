@@ -1,0 +1,216 @@
+/**
+ * Main App component with beautiful UIKit landing page
+ * Showcases themes, components, and responsive design
+ * @module {{PROJECT_NAME}}
+ * @file src/App.jsx
+ * @generated create-uikit v2.0.0
+ */
+
+import { useState } from 'react';
+import { useTheme } from '@voilajsx/uikit/theme-provider';
+
+// Import components
+import { Button } from '@voilajsx/uikit/button';
+import { Badge } from '@voilajsx/uikit/badge';
+import { Card, CardContent } from '@voilajsx/uikit/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@voilajsx/uikit/select';
+import { Switch } from '@voilajsx/uikit/switch';
+import { Progress } from '@voilajsx/uikit/progress';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@voilajsx/uikit/tabs';
+import { Sparkles, Palette, Zap, Github, Heart } from 'lucide-react';
+
+/**
+ * Interactive theme selector component
+ * Provides theme switching and dark mode toggle functionality
+ */
+function ThemeSelector() {
+  const { theme, variant, setTheme, setVariant } = useTheme();
+  
+  return (
+    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+      <div className="flex items-center gap-3">
+        <Select value={theme} onValueChange={setTheme}>
+          <SelectTrigger className="w-40 h-10 border-0 bg-muted/50">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default (Ocean)</SelectItem>
+            <SelectItem value="aurora">Aurora (Purple)</SelectItem>
+            <SelectItem value="metro">Metro (Gray-Blue)</SelectItem>
+            <SelectItem value="neon">Neon (Cyberpunk)</SelectItem>
+            <SelectItem value="ruby">Ruby (Red-Gold)</SelectItem>
+            <SelectItem value="studio">Studio (Designer)</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        <Switch 
+          checked={variant === 'dark'} 
+          onCheckedChange={(checked) => setVariant(checked ? 'dark' : 'light')}
+        />
+        <span className="text-sm text-muted-foreground">
+          {variant === 'dark' ? 'Dark' : 'Light'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Hero section with main branding and theme showcase
+ * Features animated elements and responsive design
+ */
+function HeroSection() {
+  const [progress, setProgress] = useState(75);
+  
+  return (
+    <section className="min-h-screen flex items-center justify-center">
+      <div className="max-w-4xl mx-auto px-8 text-center">
+        
+        {/* Status badge */}
+        <Badge 
+          variant="secondary" 
+          className="mb-8 text-xs px-3 py-1 bg-muted border-0"
+        >
+          <Sparkles className="w-3 h-3 mr-1" />
+          @voilajsx/uikit
+        </Badge>
+        
+        {/* Main heading */}
+        <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-6">
+          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            UI
+          </span>
+          <span className="text-foreground">Kit</span>
+        </h1>
+        
+        {/* Subtitle */}
+        <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
+          Cross-platform React component library with built-in themes for modern development
+        </p>
+        
+        {/* Theme Controls */}
+        <div className="mb-16">
+          <ThemeSelector />
+        </div>
+        
+        {/* Interactive demo cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+          <Card className="p-6 hover:shadow-lg transition-shadow">
+            <CardContent className="p-0 text-center">
+              <Palette className="w-8 h-8 mx-auto mb-4 text-primary" />
+              <h3 className="font-semibold mb-2">6 Built-in Themes</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Professional themes with light/dark variants
+              </p>
+              <Progress value={progress} className="mb-2" />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setProgress(Math.random() * 100)}
+              >
+                Demo Progress
+              </Button>
+            </CardContent>
+          </Card>
+          
+          <Card className="p-6 hover:shadow-lg transition-shadow">
+            <CardContent className="p-0 text-center">
+              <Zap className="w-8 h-8 mx-auto mb-4 text-primary" />
+              <h3 className="font-semibold mb-2">35+ Components</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Enhanced shadcn/ui with theme support
+              </p>
+              <Tabs defaultValue="tab1" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="tab1">Forms</TabsTrigger>
+                  <TabsTrigger value="tab2">Layout</TabsTrigger>
+                </TabsList>
+                <TabsContent value="tab1" className="text-xs pt-2">
+                  Button, Input, Select, Switch
+                </TabsContent>
+                <TabsContent value="tab2" className="text-xs pt-2">
+                  Card, Container, Layout
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+          
+          <Card className="p-6 hover:shadow-lg transition-shadow">
+            <CardContent className="p-0 text-center">
+              <Heart className="w-8 h-8 mx-auto mb-4 text-primary" />
+              <h3 className="font-semibold mb-2">Cross-Platform</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Web, Desktop, Mobile, Extensions
+              </p>
+              <div className="flex justify-center gap-2">
+                <Badge variant="outline" className="text-xs">Web</Badge>
+                <Badge variant="outline" className="text-xs">Desktop</Badge>
+                <Badge variant="outline" className="text-xs">Mobile</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Call to action */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+          <Button 
+            size="lg" 
+            className="gap-2"
+            onClick={() => window.open('https://github.com/voilajsx/uikit', '_blank')}
+          >
+            <Github className="w-4 h-4" />
+            View on GitHub
+          </Button>
+          <Button 
+            variant="outline" 
+            size="lg"
+            onClick={() => window.open('https://voilajsx.github.io/uikit/', '_blank')}
+          >
+            Read Documentation
+          </Button>
+        </div>
+        
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-8 max-w-md mx-auto text-center">
+          <div className="group cursor-pointer">
+            <div className="text-2xl font-bold text-primary group-hover:scale-110 transition-transform duration-300">
+              6
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              Themes
+            </div>
+          </div>
+          <div className="group cursor-pointer">
+            <div className="text-2xl font-bold text-primary group-hover:scale-110 transition-transform duration-300">
+              35+
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              Components
+            </div>
+          </div>
+          <div className="group cursor-pointer">
+            <div className="text-2xl font-bold text-primary group-hover:scale-110 transition-transform duration-300">
+              4
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              Platforms
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Main application component
+ * Provides complete UIKit showcase and theme demonstration
+ */
+export default function App() {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <HeroSection />
+    </div>
+  );
+}

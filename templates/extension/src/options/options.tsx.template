@@ -1,0 +1,19 @@
+/**
+ * Extension options page entry point
+ * Initializes React app for Chrome extension settings interface
+ * @module {{PROJECT_NAME}}
+ * @file src/options/options.tsx
+ * @generated create-uikit v2.0.0
+ */
+
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import '@voilajsx/uikit/styles';
+import OptionsApp from './OptionsApp';
+
+/**
+ * Initialize the extension options page interface
+ * Sets up React root and renders the main options component
+ */
+const root = createRoot(document.getElementById('root')!);
+root.render(<OptionsApp />);

@@ -1,0 +1,250 @@
+/**
+ * Extension options/settings page component
+ * Properly uses STORAGE_KEYS for consistent data access
+ * @module {{PROJECT_NAME}}
+ * @file src/options/OptionsApp.tsx
+ * @generated create-uikit v2.0.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import { ThemeProvider } from '@voilajsx/uikit/theme-provider';
+import { Card, CardContent, CardHeader, CardTitle } from '@voilajsx/uikit/card';
+import { Button } from '@voilajsx/uikit/button';
+import { Switch } from '@voilajsx/uikit/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@voilajsx/uikit/select';
+import { Badge } from '@voilajsx/uikit/badge';
+import { Separator } from '@voilajsx/uikit/separator';
+import { Save, Settings, Palette, BookOpen } from 'lucide-react';
+import { DEFAULT_SETTINGS, THEMES, STORAGE_KEYS } from '../shared/config.js';
+
+export default function OptionsApp() {
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('');
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      // ✅ USING STORAGE_KEYS - proper way
+      const stored = await chrome.storage.sync.get([
+        STORAGE_KEYS.extensionEnabled,
+        STORAGE_KEYS.dictionaryEnabled,
+        STORAGE_KEYS.theme,
+        STORAGE_KEYS.notifications
+      ]);
+      
+      // Merge with defaults for any missing keys
+      const loadedSettings = {
+        extensionEnabled: stored[STORAGE_KEYS.extensionEnabled] ?? DEFAULT_SETTINGS.extensionEnabled,
+        dictionaryEnabled: stored[STORAGE_KEYS.dictionaryEnabled] ?? DEFAULT_SETTINGS.dictionaryEnabled,
+        theme: stored[STORAGE_KEYS.theme] || DEFAULT_SETTINGS.theme,
+        notifications: stored[STORAGE_KEYS.notifications] ?? DEFAULT_SETTINGS.notifications
+      };
+      
+      setSettings(loadedSettings);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
+
+  const saveSettings = async () => {
+    setIsSaving(true);
+    try {
+      // ✅ USING STORAGE_KEYS - proper way
+      await chrome.storage.sync.set({
+        [STORAGE_KEYS.extensionEnabled]: settings.extensionEnabled,
+        [STORAGE_KEYS.dictionaryEnabled]: settings.dictionaryEnabled,
+        [STORAGE_KEYS.theme]: settings.theme,
+        [STORAGE_KEYS.notifications]: settings.notifications
+      });
+      
+      setSaveStatus('✅ Settings saved!');
+      setTimeout(() => setSaveStatus(''), 2000);
+    } catch (error) {
+      setSaveStatus('❌ Save failed');
+      console.error('Failed to save settings:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateSetting = (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+    setSaveStatus(''); // Clear status when editing
+  };
+
+  const resetSettings = () => {
+    setSettings(DEFAULT_SETTINGS);
+    setSaveStatus('');
+  };
+
+  const currentTheme = THEMES.find(t => t.id === settings.theme) || THEMES[0];
+
+  return (
+    <ThemeProvider theme={settings.theme} variant="light">
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex items-center justify-center w-12 h-12 bg-primary rounded-lg">
+              <Settings className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">{{PROJECT_NAME}}</h1>
+              <p className="text-muted-foreground">Extension Settings</p>
+            </div>
+          </div>
+
+          {/* Theme Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="w-5 h-5" />
+                Appearance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <div className="font-medium">Extension Theme</div>
+                <Select 
+                  value={settings.theme} 
+                  onValueChange={(value) => updateSetting('theme', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {THEMES.map((theme) => (
+                      <SelectItem key={theme.id} value={theme.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <div>
+                            <div className="font-medium">{theme.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {theme.description}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {theme.badge}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="text-sm text-muted-foreground">
+                  Currently using: <strong>{currentTheme.name}</strong> - {currentTheme.description}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Feature Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                Features
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Dictionary Search</div>
+                  <div className="text-sm text-muted-foreground">
+                    Enable word meaning lookup in popup
+                  </div>
+                </div>
+                <Switch
+                  checked={settings.dictionaryEnabled}
+                  onCheckedChange={(checked) => updateSetting('dictionaryEnabled', checked)}
+                />
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Notifications</div>
+                  <div className="text-sm text-muted-foreground">
+                    Show extension notifications
+                  </div>
+                </div>
+                <Switch
+                  checked={settings.notifications}
+                  onCheckedChange={(checked) => updateSetting('notifications', checked)}
+                />
+              </div>
+
+            </CardContent>
+          </Card>
+
+          {/* Extension Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Extension Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Extension Status</span>
+                <Badge variant={settings.extensionEnabled ? 'default' : 'secondary'}>
+                  {settings.extensionEnabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Dictionary Feature</span>
+                <Badge variant={settings.dictionaryEnabled ? 'default' : 'secondary'}>
+                  {settings.dictionaryEnabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Current Theme</span>
+                <Badge variant="outline">{currentTheme.name}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Notifications</span>
+                <Badge variant={settings.notifications ? 'default' : 'secondary'}>
+                  {settings.notifications ? 'On' : 'Off'}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Version</span>
+                <Badge variant="secondary">1.0.0</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Built with</span>
+                <span className="text-sm text-muted-foreground">VoilaJS UIKit</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Buttons */}
+          <div className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={resetSettings}
+              disabled={isSaving}
+            >
+              Reset to Defaults
+            </Button>
+
+            <div className="flex items-center gap-4">
+              {saveStatus && (
+                <span className="text-sm">{saveStatus}</span>
+              )}
+              <Button onClick={saveSettings} disabled={isSaving}>
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </ThemeProvider>
+  );
+}

@@ -1,0 +1,59 @@
+{
+  "name": "{{PACKAGE_NAME}}",
+  "private": true,
+  "version": "1.0.0",
+  "description": "{{DESCRIPTION}}",
+  "type": "module",
+  "author": "{{AUTHOR}}",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/{{AUTHOR}}/{{PACKAGE_NAME}}.git"
+  },
+  "homepage": "https://github.com/{{AUTHOR}}/{{PACKAGE_NAME}}#readme",
+  "bugs": {
+    "url": "https://github.com/{{AUTHOR}}/{{PACKAGE_NAME}}/issues"
+  },
+  "keywords": [
+    "chrome-extension",
+    "manifest-v3",
+    "react",
+    "uikit",
+    "voilajsx",
+    "{{EXTENSION}}"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && npm run post-build",
+    "watch": "vite build --watch",
+    "preview": "vite preview",
+    "package": "npm run build && cd dist && zip -r ../{{PACKAGE_NAME}}.zip .",
+    "clean": "rm -rf dist && rm -f {{PACKAGE_NAME}}.zip",
+    "post-build": "npm run copy-assets && npm run fix-paths",
+    "copy-assets": "cp manifest.json dist/ && mkdir -p dist/icons && cp public/icons/* dist/icons/ 2>/dev/null || true",
+    "fix-paths": "mv dist/src/popup/index.html dist/popup.html && mv dist/src/options/index.html dist/options.html && rm -rf dist/src"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@voilajsx/uikit": "latest",
+    "lucide-react": "^0.516.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.5.2",
+    "@tailwindcss/vite": "^4.1.10",
+    "vite": "^6.3.5",
+    "@types/chrome": "^0.0.270"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "browserslist": [
+    "Chrome >= 88"
+  ],
+  "manifest": {
+    "version": 3,
+    "target": "chrome-extension"
+  }
+}

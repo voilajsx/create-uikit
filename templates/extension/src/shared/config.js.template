@@ -1,0 +1,79 @@
+/**
+ * Extension configuration constants and default settings
+ * Essential configuration for dictionary extension
+ * @module {{PROJECT_NAME}}
+ * @file src/shared/config.js
+ * @generated create-uikit v2.0.0
+ */
+
+// Extension information
+export const EXTENSION_INFO = {
+  name: '{{PROJECT_NAME}}',
+  version: '1.0.0',
+  author: '{{AUTHOR}}',
+  description: '{{DESCRIPTION}}',
+};
+
+// Default settings
+export const DEFAULT_SETTINGS = {
+  extensionEnabled: true,
+  dictionaryEnabled: true,
+  theme: 'default',
+  notifications: true,
+};
+
+// Available themes
+export const THEMES = [
+  { 
+    id: 'default', 
+    name: 'Default', 
+    description: 'Ocean blue professional colors',
+    badge: 'Professional'
+  },
+  { 
+    id: 'aurora', 
+    name: 'Aurora', 
+    description: 'Northern lights purple-green gradients',
+    badge: 'Creative'
+  },
+  { 
+    id: 'metro', 
+    name: 'Metro', 
+    description: 'Clean transit-inspired gray-blue design',
+    badge: 'Minimal'
+  },
+  { 
+    id: 'neon', 
+    name: 'Neon', 
+    description: 'Electric cyberpunk magenta-cyan colors',
+    badge: 'Gaming'
+  },
+  { 
+    id: 'ruby', 
+    name: 'Ruby', 
+    description: 'Sophisticated red with gold accents',
+    badge: 'Premium'
+  },
+  { 
+    id: 'studio', 
+    name: 'Studio', 
+    description: 'Designer grays with amber accent',
+    badge: 'Designer'
+  },
+];
+
+// Storage keys
+export const STORAGE_KEYS = {
+  extensionEnabled: 'extensionEnabled',
+  dictionaryEnabled: 'dictionaryEnabled',
+  theme: 'theme',
+  notifications: 'notifications',
+};
+
+// Dictionary API configuration
+export const DICTIONARY_CONFIG = {
+  enabled: true,
+  apiUrl: 'https://api.dictionaryapi.dev/api/v2/entries/en/',
+  timeout: 8000,
+  maxWordLength: 50,
+};

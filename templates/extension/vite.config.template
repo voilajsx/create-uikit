@@ -1,0 +1,82 @@
+/**
+ * Vite configuration for Chrome extension development
+ * Builds popup, options, background, and content scripts
+ * @module {{PROJECT_NAME}}
+ * @file vite.config.js
+ * @generated create-uikit v2.0.0
+ */
+
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+import { resolve } from 'path'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
+  
+  build: {
+    rollupOptions: {
+      input: {
+        // HTML files for popup and options pages
+        popup: resolve(__dirname, 'src/popup/index.html'),
+        options: resolve(__dirname, 'src/options/index.html'),
+        
+        // JavaScript files for background and content scripts
+        'background': resolve(__dirname, 'src/background/background.js'),
+        'content': resolve(__dirname, 'src/content/content.js'),
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          // Keep background and content scripts in root for manifest.json
+          if (chunkInfo.name === 'background') {
+            return 'background.js';
+          }
+          if (chunkInfo.name === 'content') {
+            return 'content.js';
+          }
+          // Other files use default naming
+          return '[name].js';
+        },
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name].[ext]',
+        // Use ES modules for all outputs (Manifest V3 requirement)
+        format: 'es'
+      }
+    },
+    outDir: 'dist',
+    emptyOutDir: true,
+    // Target modern browsers that support ES modules in service workers
+    target: 'esnext',
+    // Generate source maps for debugging
+    sourcemap: true
+  },
+  
+  // Define global constants for extension
+  define: {
+    global: 'globalThis',
+    __EXTENSION_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
+  },
+  
+  // Resolve configuration for cleaner imports
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      '@shared': resolve(__dirname, 'src/shared'),
+    },
+  },
+  
+  // Development server configuration (for options page development)
+  server: {
+    port: 5174, // Different port to avoid conflicts with main apps
+    open: false, // Don't auto-open browser for extensions
+  },
+  
+  // Preview configuration
+  preview: {
+    port: 4174,
+    open: false,
+  },
+})

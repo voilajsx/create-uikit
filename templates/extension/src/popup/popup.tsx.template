@@ -1,0 +1,19 @@
+/**
+ * Extension popup entry point
+ * Initializes React app for Chrome extension popup interface
+ * @module {{PROJECT_NAME}}
+ * @file src/popup/popup.tsx
+ * @generated create-uikit v2.0.0
+ */
+
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import '@voilajsx/uikit/styles';
+import PopupApp from './PopupApp';
+
+/**
+ * Initialize the extension popup interface
+ * Sets up React root and renders the main popup component
+ */
+const root = createRoot(document.getElementById('root')!);
+root.render(<PopupApp />);

@@ -1,0 +1,439 @@
+/**
+ * Background service worker for extension coordination
+ * Handles installation, storage, and inter-component messaging
+ * @module {{PROJECT_NAME}}
+ * @file src/background/background.js
+ * @generated create-uikit v2.0.0
+ */
+
+// Import shared utilities and configuration
+import { DEFAULT_SETTINGS, STORAGE_KEYS, EXTENSION_INFO } from '../shared/config.js';
+
+/**
+ * Background service worker manager class
+ * Coordinates extension functionality and handles lifecycle events
+ */
+class BackgroundManager {
+  constructor() {
+    this.extensionVersion = chrome.runtime.getManifest().version;
+    this.setupEventListeners();
+    this.initialize();
+  }
+
+  /**
+   * Setup extension event listeners
+   */
+  setupEventListeners() {
+    // Extension installation/update events
+    chrome.runtime.onInstalled.addListener((details) => {
+      this.handleInstallation(details);
+    });
+
+    // Extension startup event
+    chrome.runtime.onStartup.addListener(() => {
+      this.handleStartup();
+    });
+
+    // Message handling between extension components
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      this.handleMessage(message, sender, sendResponse);
+      return true; // Keep message channel open for async responses
+    });
+
+    // Tab update events (optional - useful for some extensions)
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      this.handleTabUpdate(tabId, changeInfo, tab);
+    });
+
+    // Tab activation events
+    chrome.tabs.onActivated.addListener((activeInfo) => {
+      this.handleTabActivated(activeInfo);
+    });
+
+    // Storage change events
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      this.handleStorageChanged(changes, namespace);
+    });
+  }
+
+  /**
+   * Initialize background service worker
+   */
+  async initialize() {
+    console.log(`[{{PROJECT_NAME}}] Background service worker v${this.extensionVersion} initialized`);
+    
+    // Ensure default settings exist
+    await this.ensureDefaultSettings();
+    
+    // Perform any startup tasks
+    await this.performStartupTasks();
+  }
+
+  /**
+   * Handle extension installation or update
+   * @param {Object} details - Installation details
+   */
+  async handleInstallation(details) {
+    console.log(`[{{PROJECT_NAME}}] Installation event:`, details.reason);
+
+    switch (details.reason) {
+      case 'install':
+        await this.handleFirstInstall();
+        break;
+      case 'update':
+        await this.handleExtensionUpdate(details.previousVersion);
+        break;
+      case 'chrome_update':
+        await this.handleChromeUpdate();
+        break;
+    }
+  }
+
+  /**
+   * Handle first-time extension installation
+   */
+  async handleFirstInstall() {
+    console.log('[{{PROJECT_NAME}}] First installation - setting up defaults');
+    
+    try {
+      // Set up default settings
+      await this.setupDefaultSettings();
+      
+      // Initialize extension state
+      await chrome.storage.local.set({
+        [STORAGE_KEYS.installDate]: Date.now(),
+        [STORAGE_KEYS.version]: this.extensionVersion,
+      });
+
+      // Optional: Show welcome/onboarding
+      // chrome.tabs.create({ url: 'options.html' });
+      
+      console.log('[{{PROJECT_NAME}}] First install setup completed');
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] First install setup failed:', error);
+    }
+  }
+
+  /**
+   * Handle extension update
+   * @param {string} previousVersion - Previous extension version
+   */
+  async handleExtensionUpdate(previousVersion) {
+    console.log(`[{{PROJECT_NAME}}] Updated from version ${previousVersion} to ${this.extensionVersion}`);
+    
+    try {
+      // Perform migration if needed
+      await this.migrateSettings(previousVersion);
+      
+      // Update version in storage
+      await chrome.storage.local.set({
+        [STORAGE_KEYS.version]: this.extensionVersion,
+        [STORAGE_KEYS.lastUpdate]: Date.now(),
+      });
+      
+      console.log('[{{PROJECT_NAME}}] Update migration completed');
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Update migration failed:', error);
+    }
+  }
+
+  /**
+   * Handle Chrome browser update
+   */
+  async handleChromeUpdate() {
+    console.log('[{{PROJECT_NAME}}] Chrome browser updated');
+    // Perform any Chrome-specific compatibility checks
+  }
+
+  /**
+   * Handle extension startup
+   */
+  async handleStartup() {
+    console.log('[{{PROJECT_NAME}}] Extension startup');
+    await this.performStartupTasks();
+  }
+
+  /**
+   * Setup default extension settings
+   */
+  async setupDefaultSettings() {
+    try {
+      const existing = await chrome.storage.sync.get(STORAGE_KEYS.settings);
+      
+      if (!existing[STORAGE_KEYS.settings]) {
+        await chrome.storage.sync.set({
+          [STORAGE_KEYS.settings]: DEFAULT_SETTINGS,
+        });
+        console.log('[{{PROJECT_NAME}}] Default settings initialized');
+      }
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Failed to setup default settings:', error);
+    }
+  }
+
+  /**
+   * Ensure default settings exist (for startup)
+   */
+  async ensureDefaultSettings() {
+    try {
+      const stored = await chrome.storage.sync.get(STORAGE_KEYS.settings);
+      
+      if (!stored[STORAGE_KEYS.settings]) {
+        await this.setupDefaultSettings();
+      }
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Failed to ensure default settings:', error);
+    }
+  }
+
+  /**
+   * Migrate settings from previous version
+   * @param {string} previousVersion - Previous extension version
+   */
+  async migrateSettings(previousVersion) {
+    try {
+      const stored = await chrome.storage.sync.get();
+      let needsUpdate = false;
+
+      // Example migration: Add new settings that didn't exist in older versions
+      if (!stored[STORAGE_KEYS.settings]?.notificationsEnabled) {
+        stored[STORAGE_KEYS.settings] = {
+          ...stored[STORAGE_KEYS.settings],
+          notificationsEnabled: DEFAULT_SETTINGS.notificationsEnabled,
+        };
+        needsUpdate = true;
+      }
+
+      // Example: Migrate old setting names
+      if (stored.oldSettingName !== undefined) {
+        stored[STORAGE_KEYS.settings].newSettingName = stored.oldSettingName;
+        delete stored.oldSettingName;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        await chrome.storage.sync.set(stored);
+        console.log('[{{PROJECT_NAME}}] Settings migrated successfully');
+      }
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Settings migration failed:', error);
+    }
+  }
+
+  /**
+   * Perform startup tasks
+   */
+  async performStartupTasks() {
+    try {
+      // Update badge or icon based on current state
+      await this.updateExtensionBadge();
+      
+      // Clear any temporary data
+      await this.cleanupTemporaryData();
+      
+      console.log('[{{PROJECT_NAME}}] Startup tasks completed');
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Startup tasks failed:', error);
+    }
+  }
+
+  /**
+   * Update extension badge
+   */
+  async updateExtensionBadge() {
+    try {
+      const settings = await this.getSettings();
+      
+      if (settings.extensionEnabled) {
+        chrome.action.setBadgeText({ text: '' });
+        chrome.action.setBadgeBackgroundColor({ color: '#3b82f6' });
+      } else {
+        chrome.action.setBadgeText({ text: 'OFF' });
+        chrome.action.setBadgeBackgroundColor({ color: '#ef4444' });
+      }
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Failed to update badge:', error);
+    }
+  }
+
+  /**
+   * Clean up temporary data
+   */
+  async cleanupTemporaryData() {
+    try {
+      // Remove old temporary data (older than 24 hours)
+      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+      const stored = await chrome.storage.local.get();
+      
+      Object.keys(stored).forEach(key => {
+        if (key.startsWith('temp_') && stored[key].timestamp < oneDayAgo) {
+          chrome.storage.local.remove(key);
+        }
+      });
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Cleanup failed:', error);
+    }
+  }
+
+  /**
+   * Handle messages from extension components
+   * @param {Object} message - Message object
+   * @param {Object} sender - Message sender info
+   * @param {Function} sendResponse - Response callback
+   */
+  async handleMessage(message, sender, sendResponse) {
+    try {
+      console.log('[{{PROJECT_NAME}}] Background message:', message.action);
+
+      switch (message.action) {
+        case 'getSettings':
+          const settings = await this.getSettings();
+          sendResponse({ success: true, data: settings });
+          break;
+
+        case 'updateSettings':
+          const updated = await this.updateSettings(message.settings);
+          sendResponse({ success: updated });
+          break;
+
+        case 'contentScriptReady':
+          console.log('[{{PROJECT_NAME}}] Content script ready on:', message.url);
+          sendResponse({ success: true });
+          break;
+
+        case 'getExtensionInfo':
+          sendResponse({
+            success: true,
+            data: {
+              version: this.extensionVersion,
+              id: chrome.runtime.id,
+              ...EXTENSION_INFO,
+            },
+          });
+          break;
+
+        case 'clearAllData':
+          const cleared = await this.clearAllExtensionData();
+          sendResponse({ success: cleared });
+          break;
+
+        default:
+          sendResponse({
+            success: false,
+            error: `Unknown action: ${message.action}`,
+          });
+      }
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Message handling error:', error);
+      sendResponse({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Handle tab updates
+   * @param {number} tabId - Tab ID
+   * @param {Object} changeInfo - Change information
+   * @param {Object} tab - Tab object
+   */
+  handleTabUpdate(tabId, changeInfo, tab) {
+    // Only act on complete page loads
+    if (changeInfo.status === 'complete' && tab.url) {
+      console.log('[{{PROJECT_NAME}}] Page loaded:', tab.url);
+      
+      // Example: Update badge based on page compatibility
+      this.updateBadgeForTab(tab);
+    }
+  }
+
+  /**
+   * Handle tab activation
+   * @param {Object} activeInfo - Active tab info
+   */
+  async handleTabActivated(activeInfo) {
+    try {
+      const tab = await chrome.tabs.get(activeInfo.tabId);
+      this.updateBadgeForTab(tab);
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Tab activation error:', error);
+    }
+  }
+
+  /**
+   * Update badge for specific tab
+   * @param {Object} tab - Tab object
+   */
+  updateBadgeForTab(tab) {
+    const unsupportedUrls = ['chrome://', 'chrome-extension://', 'moz-extension://'];
+    const isSupported = !unsupportedUrls.some(prefix => tab.url.startsWith(prefix));
+    
+    // Could update badge or icon based on page support
+    // This is just an example - implement based on your extension's needs
+  }
+
+  /**
+   * Handle storage changes
+   * @param {Object} changes - Storage changes
+   * @param {string} namespace - Storage namespace
+   */
+  handleStorageChanged(changes, namespace) {
+    console.log('[{{PROJECT_NAME}}] Storage changed:', { changes, namespace });
+    
+    // React to settings changes
+    if (changes[STORAGE_KEYS.settings]) {
+      this.updateExtensionBadge();
+    }
+  }
+
+  /**
+   * Get current extension settings
+   * @returns {Promise<Object>} Current settings
+   */
+  async getSettings() {
+    try {
+      const stored = await chrome.storage.sync.get(STORAGE_KEYS.settings);
+      return stored[STORAGE_KEYS.settings] || DEFAULT_SETTINGS;
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Failed to get settings:', error);
+      return DEFAULT_SETTINGS;
+    }
+  }
+
+  /**
+   * Update extension settings
+   * @param {Object} newSettings - New settings to save
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateSettings(newSettings) {
+    try {
+      await chrome.storage.sync.set({
+        [STORAGE_KEYS.settings]: { ...DEFAULT_SETTINGS, ...newSettings },
+      });
+      return true;
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Failed to update settings:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Clear all extension data
+   * @returns {Promise<boolean>} Success status
+   */
+  async clearAllExtensionData() {
+    try {
+      await chrome.storage.sync.clear();
+      await chrome.storage.local.clear();
+      await this.setupDefaultSettings();
+      return true;
+    } catch (error) {
+      console.error('[{{PROJECT_NAME}}] Failed to clear data:', error);
+      return false;
+    }
+  }
+}
+
+// Initialize background service worker
+const backgroundManager = new BackgroundManager();

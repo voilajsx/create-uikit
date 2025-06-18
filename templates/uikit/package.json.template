@@ -1,0 +1,36 @@
+{
+  "name": "{{PACKAGE_NAME}}",
+  "private": true,
+  "version": "0.0.0",
+  "description": "{{DESCRIPTION}}",
+  "type": "module",
+  "author": "{{AUTHOR}}",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@voilajsx/uikit": "latest",
+    "lucide-react": "^0.516.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.5.2",
+    "@tailwindcss/vite": "^4.1.10",
+    "vite": "^6.3.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "react",
+    "vite",
+    "uikit",
+    "voilajsx",
+    "tailwind",
+    "{{EXTENSION}}"
+  ]
+}

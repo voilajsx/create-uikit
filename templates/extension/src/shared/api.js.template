@@ -1,0 +1,125 @@
+/**
+ * Dictionary API service for word lookup
+ * Essential API functionality for dictionary extension
+ * @module {{PROJECT_NAME}}
+ * @file src/shared/api.js
+ * @generated create-uikit v2.0.0
+ */
+
+import { DICTIONARY_CONFIG } from './config.js';
+import { debug, utils } from './utils.js';
+
+/**
+ * Dictionary API service
+ */
+export const dictionaryAPI = {
+  /**
+   * Look up word definition
+   * @param {string} word - Word to look up
+   * @returns {Promise<object>} Definition result
+   */
+  async lookupWord(word) {
+    if (!word || typeof word !== 'string') {
+      return { data: null, error: 'Invalid word provided' };
+    }
+
+    const cleanWord = word.trim().toLowerCase();
+    if (cleanWord.length === 0) {
+      return { data: null, error: 'Please enter a word' };
+    }
+
+    if (cleanWord.length > DICTIONARY_CONFIG.maxWordLength) {
+      return { data: null, error: 'Word is too long' };
+    }
+
+    try {
+      debug.log('Looking up word:', cleanWord);
+
+      const response = await fetch(
+        `${DICTIONARY_CONFIG.apiUrl}${encodeURIComponent(cleanWord)}`,
+        {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(DICTIONARY_CONFIG.timeout)
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { data: null, error: `"${word}" not found in dictionary` };
+        }
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data || data.length === 0) {
+        return { data: null, error: 'No definition found' };
+      }
+
+      // Parse the API response
+      const wordData = data[0];
+      const meanings = wordData.meanings || [];
+      
+      if (meanings.length === 0) {
+        return { data: null, error: 'No meanings available' };
+      }
+
+      const firstMeaning = meanings[0];
+      const definitions = firstMeaning.definitions || [];
+      
+      if (definitions.length === 0) {
+        return { data: null, error: 'No definitions available' };
+      }
+
+      const result = {
+        word: wordData.word,
+        phonetic: wordData.phonetic || '',
+        definitions: [
+          {
+            text: definitions[0].definition,
+            partOfSpeech: firstMeaning.partOfSpeech || '',
+            example: definitions[0].example || ''
+          }
+        ]
+      };
+
+      debug.log('Dictionary lookup successful for:', result.word);
+      return { data: result, error: null };
+
+    } catch (error) {
+      debug.error('Dictionary lookup failed:', error);
+      
+      if (error.name === 'TimeoutError') {
+        return { data: null, error: 'Search timed out. Please try again.' };
+      }
+      
+      return { data: null, error: 'Dictionary service unavailable' };
+    }
+  }
+};
+
+/**
+ * Mock API for development and testing
+ */
+export const mockAPI = {
+  async lookupWord(word) {
+    await utils.sleep(500);
+    debug.log('Mock dictionary lookup for:', word);
+
+    return {
+      data: {
+        word,
+        phonetic: `/ˈsæmpəl/`,
+        definitions: [
+          {
+            text: `Mock definition for the word "${word}".`,
+            partOfSpeech: 'noun',
+            example: `Here is an example sentence using "${word}".`
+          }
+        ]
+      },
+      error: null,
+    };
+  }
+};

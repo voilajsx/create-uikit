@@ -1,0 +1,29 @@
+<!-- 
+  Extension options page HTML template
+  @module {{PROJECT_NAME}}
+  @file src/options/index.html
+  @generated create-uikit v2.0.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{{PROJECT_NAME}} - Extension Settings">
+  
+  <!-- Content Security Policy for extension options page -->
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'self';">
+  
+  <title>{{PROJECT_NAME}} Settings</title>
+  
+  <!-- Preload critical styles for faster rendering -->
+  <link rel="preload" href="./options.{{FILE_EXTENSION}}" as="script" crossorigin>
+</head>
+<body>
+  <!-- Extension options container -->
+  <div id="root"></div>
+  
+  <!-- React application entry point -->
+  <script type="module" src="./options.{{EXTENSION}}"></script>
+</body>
+</html>

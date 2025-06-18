@@ -1,0 +1,49 @@
+/**
+ * Content script for page interaction and data extraction
+ * Communicates with popup via Chrome message passing API
+ * @module {{PROJECT_NAME}}
+ * @file src/content/content.js
+ * @generated create-uikit v2.0.0
+ */
+
+console.log('[{{PROJECT_NAME}}] Content script loaded');
+
+/**
+ * Handle messages from popup
+ */
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[{{PROJECT_NAME}}] Message received:', message.action);
+
+  if (message.action === 'performMainAction') {
+    // Simple page info
+    const result = {
+      success: true,
+      data: {
+        title: document.title,
+        url: window.location.href,
+        wordCount: document.body.innerText.split(' ').length,
+      },
+      message: `Page analyzed: ${document.title}`,
+    };
+    
+    sendResponse(result);
+  }
+
+  if (message.action === 'ping') {
+    sendResponse({
+      success: true,
+      ready: true,
+      url: window.location.href,
+    });
+  }
+
+  return true; // Keep message channel open
+});
+
+// Tell background script we're ready
+chrome.runtime.sendMessage({
+  action: 'contentScriptReady',
+  url: window.location.href,
+}).catch(() => {
+  // Background script might not be ready yet
+});
